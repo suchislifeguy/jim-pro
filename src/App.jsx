@@ -2041,6 +2041,72 @@
   /* ════════════════════════════════════════════
      FLOATING JIM (phone call only)
   ════════════════════════════════════════════ */
+  const DraggableJim = ({ size, onTap }) => {
+    const placeholderRef = useRef(null);
+    const [fixed, setFixed] = useState(false);
+    const [returning, setReturning] = useState(false);
+    const [dragPos, setDragPos] = useState({ x: 0, y: 0 });
+    const [isDragging, setIsDragging] = useState(false);
+    const drag = useRef({ hasMoved: false, startCX: 0, startCY: 0, originX: 0, originY: 0 });
+
+    const onStart = (e) => {
+      const el = placeholderRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const cx = e.touches ? e.touches[0].clientX : e.clientX;
+      const cy = e.touches ? e.touches[0].clientY : e.clientY;
+      drag.current = { hasMoved: false, startCX: cx, startCY: cy, originX: rect.left, originY: rect.top };
+
+      const onMove = (ev) => {
+        if (ev.cancelable) ev.preventDefault();
+        const mx = ev.touches ? ev.touches[0].clientX : ev.clientX;
+        const my = ev.touches ? ev.touches[0].clientY : ev.clientY;
+        const dx = mx - drag.current.startCX;
+        const dy = my - drag.current.startCY;
+        if (!drag.current.hasMoved && Math.abs(dx) + Math.abs(dy) > 6) {
+          drag.current.hasMoved = true;
+          setFixed(true);
+          setIsDragging(true);
+          setReturning(false);
+          setDragPos({ x: drag.current.originX, y: drag.current.originY });
+        }
+        if (drag.current.hasMoved) setDragPos({ x: drag.current.originX + dx, y: drag.current.originY + dy });
+      };
+
+      const onEnd = () => {
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onEnd);
+        window.removeEventListener('touchmove', onMove);
+        window.removeEventListener('touchend', onEnd);
+        if (!drag.current.hasMoved) { onTap?.(); return; }
+        setIsDragging(false);
+        setReturning(true);
+        setDragPos({ x: drag.current.originX, y: drag.current.originY });
+        setTimeout(() => { setFixed(false); setReturning(false); }, 520);
+      };
+
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onEnd);
+      window.addEventListener('touchmove', onMove, { passive: false });
+      window.addEventListener('touchend', onEnd);
+    };
+
+    return (
+      <>
+        <div ref={placeholderRef} style={{ width: size, height: Math.round(size * 1.3), visibility: fixed ? 'hidden' : 'visible', cursor: 'grab', flexShrink: 0 }}
+          onMouseDown={onStart} onTouchStart={onStart}>
+          {!fixed && <JimMascot size={size} state="idle"/>}
+        </div>
+        {fixed && (
+          <div style={{ position: 'fixed', left: dragPos.x, top: dragPos.y, zIndex: 9999, pointerEvents: 'none',
+            transition: returning ? 'left 0.5s cubic-bezier(0.34,1.56,0.64,1), top 0.5s cubic-bezier(0.34,1.56,0.64,1)' : 'none' }}>
+            <JimMascot size={size} state={isDragging ? 'wave' : 'idle'}/>
+          </div>
+        )}
+      </>
+    );
+  };
+
   const FloatingJimMascot = ({ status }) => {
     const mascotState = status === 'error' ? 'error' : (status === 'speaking' || status === 'thinking') ? 'thinking' : status === 'listening' ? 'wave' : 'idle';
     const isThinking = status === 'thinking';
@@ -3095,7 +3161,7 @@ Return ONLY a valid JSON object. Format: {"cost": 123.45, "items": "Hammer\\nNai
           <div className="flex items-center gap-2.5 cursor-pointer min-w-0 flex-1" onClick={() => { setViewMode('dashboard'); setSelectionMode(false); }}>
             {businessProfile?.logo
               ? <img src={businessProfile.logo} className="h-9 w-9 object-contain rounded-lg bg-slate-100 dark:bg-slate-800 p-0.5 flex-shrink-0" alt=""/>
-              : jimBusy ? <div className="h-9 w-9 flex-shrink-0"/> : <JimMascot size={36} state="idle"/>}
+              : jimBusy ? <div className="h-9 w-9 flex-shrink-0"/> : <DraggableJim size={36} onTap={startJimLive}/>}
             <div className="min-w-0">
               <h1 className="font-extrabold text-lg tracking-tight truncate leading-none">{viewMode === 'detail' ? 'Job Details' : (businessProfile?.name || 'JIM')}</h1>
               {!businessProfile?.name && viewMode !== 'detail' && (
@@ -3207,8 +3273,10 @@ Return ONLY a valid JSON object. Format: {"cost": 123.45, "items": "Hammer\\nNai
               <div className="grid gap-2">
                 {clientsData.length === 0 && (
                   <div className="flex flex-col items-center py-16 gap-3">
-                    <JimMascot size={48} state="empty"/>
                     <p className="text-slate-600 dark:text-slate-400 font-semibold text-sm">No clients yet</p>
+                    <button onClick={startJimLive} className="flex items-center gap-1.5 px-4 h-9 bg-orange-50 dark:bg-orange-950/30 hover:bg-orange-100 dark:hover:bg-orange-950/50 text-orange-600 dark:text-orange-400 rounded-full text-xs font-bold border border-orange-200 dark:border-orange-800 transition-colors active:scale-95">
+                      <Mic size={13}/> Ask JIM how!
+                    </button>
                   </div>
                 )}
                 {clientsData.map((c, i) => {
@@ -3308,9 +3376,15 @@ Return ONLY a valid JSON object. Format: {"cost": 123.45, "items": "Hammer\\nNai
               })}
               {filteredJobs.length===0 && (
                 <div className="flex flex-col items-center py-16 gap-3">
-                  <JimMascot size={48} state="empty"/>
                   <p className="text-slate-600 dark:text-slate-400 font-semibold text-sm">{searchQ ? 'No results' : 'No projects yet'}</p>
-                  {!searchQ && <p className="text-slate-500 dark:text-slate-500 text-xs text-center font-medium">Tap <span className="font-semibold">New Quote</span> to get started</p>}
+                  {!searchQ && (
+                    <>
+                      <p className="text-slate-500 dark:text-slate-500 text-xs text-center font-medium">Tap <span className="font-semibold">New Quote</span> to get started</p>
+                      <button onClick={startJimLive} className="flex items-center gap-1.5 mt-1 px-4 h-9 bg-orange-50 dark:bg-orange-950/30 hover:bg-orange-100 dark:hover:bg-orange-950/50 text-orange-600 dark:text-orange-400 rounded-full text-xs font-bold border border-orange-200 dark:border-orange-800 transition-colors active:scale-95">
+                        <Mic size={13}/> Ask JIM how!
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
             </div>
