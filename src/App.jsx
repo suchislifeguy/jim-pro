@@ -3274,8 +3274,8 @@ Return ONLY a valid JSON object. Format: {"cost": 123.45, "items": "Hammer\\nNai
                 {clientsData.length === 0 && (
                   <div className="flex flex-col items-center py-16 gap-3">
                     <p className="text-slate-600 dark:text-slate-400 font-semibold text-sm">No clients yet</p>
-                    <button onClick={startJimLive} className="flex items-center gap-1.5 px-4 h-9 bg-orange-50 dark:bg-orange-950/30 hover:bg-orange-100 dark:hover:bg-orange-950/50 text-orange-600 dark:text-orange-400 rounded-full text-xs font-bold border border-orange-200 dark:border-orange-800 transition-colors active:scale-95">
-                      <Mic size={13}/> Ask JIM how!
+                    <button onClick={startJimLive} className="flex items-center gap-1.5 px-4 h-9 bg-purple-50 dark:bg-purple-950/30 hover:bg-purple-100 dark:hover:bg-purple-950/50 text-purple-600 dark:text-purple-400 rounded-full text-xs font-bold border border-purple-200 dark:border-purple-800 transition-colors active:scale-95">
+                      <Mic size={13}/> Call JIM
                     </button>
                   </div>
                 )}
@@ -3380,8 +3380,8 @@ Return ONLY a valid JSON object. Format: {"cost": 123.45, "items": "Hammer\\nNai
                   {!searchQ && (
                     <>
                       <p className="text-slate-500 dark:text-slate-500 text-xs text-center font-medium">Tap <span className="font-semibold">New Quote</span> to get started</p>
-                      <button onClick={startJimLive} className="flex items-center gap-1.5 mt-1 px-4 h-9 bg-orange-50 dark:bg-orange-950/30 hover:bg-orange-100 dark:hover:bg-orange-950/50 text-orange-600 dark:text-orange-400 rounded-full text-xs font-bold border border-orange-200 dark:border-orange-800 transition-colors active:scale-95">
-                        <Mic size={13}/> Ask JIM how!
+                      <button onClick={startJimLive} className="flex items-center gap-1.5 mt-1 px-4 h-9 bg-purple-50 dark:bg-purple-950/30 hover:bg-purple-100 dark:hover:bg-purple-950/50 text-purple-600 dark:text-purple-400 rounded-full text-xs font-bold border border-purple-200 dark:border-purple-800 transition-colors active:scale-95">
+                        <Mic size={13}/> Call JIM
                       </button>
                     </>
                   )}
