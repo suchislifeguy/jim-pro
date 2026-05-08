@@ -135,8 +135,8 @@
 
               {/* ── mustache ── */}
               <g className="jim-mustache">
-                <path d="M23 37.5 Q27 34 30 37" stroke="#6b4c3b" strokeWidth="1.8" fill="none" strokeLinecap="round"/>
-                <path d="M30 37 Q33 34 37 37.5" stroke="#6b4c3b" strokeWidth="1.8" fill="none" strokeLinecap="round"/>
+                <path d="M23 37.5 Q27 34 30 37" stroke="#374151" strokeWidth="1.8" fill="none" strokeLinecap="round"/>
+                <path d="M30 37 Q33 34 37 37.5" stroke="#374151" strokeWidth="1.8" fill="none" strokeLinecap="round"/>
               </g>
             </g>
 
@@ -536,7 +536,7 @@
             <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-xl border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-sm font-bold mb-4">Please add your Gemini API Key in Settings to use Ask JIM features.</div>
           ) : (
             <>
-              <p className="text-sm text-slate-500 dark:text-slate-400 mb-4 font-medium leading-relaxed">Provide optional instructions to guide the AI when generating this {docType}.</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mb-4 font-medium leading-relaxed">Give JIM a nudge — any extra details and he'll write your {docType} around them.</p>
 
               <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-purple-500 bg-slate-50 dark:bg-slate-800 mb-4 transition-shadow">
                 <textarea
@@ -1122,8 +1122,8 @@
         const toListString = (v) => Array.isArray(v) ? v.filter(Boolean).join('\n') : String(v||'');
         const tasks = (json.tasks || []).map(t => ({ title: t.title||'', time: t.time||'', rate: String(t.rate||''), materialsCost: String(t.materialsCost||''), materials: toListString(t.materials), tools: toListString(t.tools), desc: t.desc||'', images:[] }));
         onSave(json.address || addr, json.clientName || client, json.clientPhone || phone, tasks, json.dueDate || dueDate, json.clientEmail || email);
-        showToast('Successfully imported via AI!', 'success');
-      } catch (err) { console.error("AI Import Error details:", err); showToast(`AI import failed: ${err.message}`, 'error'); }
+        showToast('JIM sorted it — check the details!', 'success');
+      } catch (err) { console.error("AI Import Error details:", err); showToast(`JIM hit a wall: ${err.message}`, 'error'); }
       finally { setIsImporting(false); }
     };
 
@@ -2606,7 +2606,7 @@ Return ONLY a valid JSON object with: "summary", "tasks" (array of {title, desc}
         const updatedTasks = job.tasks.map((t, idx) => ({ ...t, desc: result.tasks?.[idx]?.desc || t.desc, title: result.tasks?.[idx]?.title || t.title }));
         setPrintPreviewJob({ ...job, projectNotes: result.summary + (result.footer ? '\n\n' + result.footer : ''), tasks: updatedTasks });
         setShowAIAssistModal(false);
-        showToast(`AI ${docType} generated — review & print!`, 'success');
+        showToast(`JIM built your ${docType} — look it over!`, 'success');
       } catch (err) { showToast('Failed to generate document: ' + err.message, 'error'); }
       finally { setIsGenerating(false); }
     };
@@ -2682,7 +2682,7 @@ Return ONLY a valid JSON object with keys: "title", "time" (e.g. "2h 30m"), "rat
         const text = resData.candidates[0].content.parts[0].text.trim();
         setTaskData(p => ({...p, desc: text}));
         showToast('Text professionalized!', 'success');
-      } catch (e) { showToast('AI failed', 'error'); } finally { setIsProfessionalizing(false); }
+      } catch (e) { showToast("JIM couldn't polish that one", 'error'); } finally { setIsProfessionalizing(false); }
     };
 
     const handleScanReceipt = async (e) => {
@@ -3586,7 +3586,7 @@ Return ONLY a valid JSON object. Format: {"cost": 123.45, "items": "Hammer\\nNai
                   <div className="relative">
                     <textarea placeholder="Full details…" className="w-full p-3.5 pr-3.5 pb-11 bg-slate-50 dark:bg-slate-800 rounded-xl outline-none text-sm font-medium h-32 resize-none dark:text-white dark:placeholder-slate-500 custom-scrollbar border border-slate-200 dark:border-slate-700 focus:border-orange-400 focus:ring-1 focus:ring-orange-400/40 transition-all" value={taskData.desc} onChange={e=>setTaskData(p=>({...p,desc:e.target.value}))}/>
                     <div className="absolute bottom-1.5 right-1.5 flex gap-1">
-                      <button type="button" onClick={handleProfessionalize} disabled={isProfessionalizing} aria-label="Polish with AI" className="flex items-center gap-1 h-8 px-2.5 rounded-lg text-xs font-semibold text-purple-600 hover:bg-purple-100 dark:text-purple-400 dark:hover:bg-purple-950/40 transition-colors disabled:opacity-50">
+                      <button type="button" onClick={handleProfessionalize} disabled={isProfessionalizing} aria-label="Let JIM polish this" className="flex items-center gap-1 h-8 px-2.5 rounded-lg text-xs font-semibold text-purple-600 hover:bg-purple-100 dark:text-purple-400 dark:hover:bg-purple-950/40 transition-colors disabled:opacity-50">
                         {isProfessionalizing ? <div className="w-3 h-3 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"/> : <Wand2 size={13}/>} Polish
                       </button>
                       <button type="button" onClick={() => toggleVoice('taskDesc', (val) => setTaskData(p => ({...p, desc: typeof val === 'function' ? val(p.desc) : val})))} aria-label="Dictate description" className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${listeningField==='taskDesc'?'bg-red-500 text-white animate-pulse':'text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-700'}`}><Mic size={14}/></button>
