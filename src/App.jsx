@@ -1908,9 +1908,9 @@
     ════════════════════════════════════════════ */
     const JimLivePanel = ({ status, transcript, onClose, onMicTap }) => {
       const transcriptRef = useRef(null);
+      const [expanded, setExpanded] = useState(false);
       useEffect(() => { if (transcriptRef.current) transcriptRef.current.scrollTop = transcriptRef.current.scrollHeight; }, [transcript]);
 
-      const mascotState = status === 'error' ? 'error' : status === 'speaking' ? 'thinking' : status === 'listening' ? 'wave' : 'idle';
       const statusLabel = {
         connecting: 'Initialising...',
         listening: 'Listening...',
@@ -1920,28 +1920,92 @@
         idle: 'Paused'
       };
 
+      const statusColor = status === 'error' ? 'text-red-400' : status === 'speaking' ? 'text-orange-400' : status === 'listening' ? 'text-emerald-400' : 'text-slate-400';
+      const dotColor = status === 'listening' ? 'bg-emerald-500 animate-pulse' : status === 'speaking' ? 'bg-orange-500 animate-pulse' : 'bg-slate-600';
+      const micBg = status === 'speaking' || status === 'thinking' ? 'bg-amber-600 hover:bg-amber-500' : status === 'listening' ? 'bg-red-600 hover:bg-red-500' : 'bg-emerald-600 hover:bg-emerald-500';
+
+      if (expanded) {
+        return (
+          <div className="fixed inset-x-0 bottom-0 z-[600] bg-slate-900/98 backdrop-blur-xl border-t border-slate-700 shadow-2xl rounded-t-3xl flex flex-col animate-slide-up pointer-events-auto" style={{height: '72vh'}}>
+            {/* Header */}
+            <div className="flex justify-between items-center px-5 pt-5 pb-3 border-b border-slate-800 flex-shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className={`w-2.5 h-2.5 rounded-full ${dotColor}`} />
+                <h2 className="text-white font-black text-sm tracking-tight uppercase">JIM Voice</h2>
+                <span className={`text-xs font-bold uppercase ${statusColor}`}>{statusLabel[status] || '...'}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={() => setExpanded(false)} className="text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 p-1.5 rounded-full transition-colors" title="Compact view">
+                  <ChevronDown size={16} />
+                </button>
+                <button onClick={onClose} className="text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 p-1.5 rounded-full transition-colors">
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+
+            {/* Transcript — fills remaining space */}
+            <div ref={transcriptRef} className="flex-1 overflow-y-auto custom-scrollbar px-4 py-3 space-y-3">
+              {transcript.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center gap-3 text-center">
+                  <JimMascot size={52} state="idle" />
+                  <p className="text-slate-500 text-sm font-medium">Ask about jobs, invoices, revenue, or how to use the app…</p>
+                </div>
+              ) : transcript.map((t, i) => (
+                <div key={i} className={`flex items-start gap-2.5 ${t.role === 'jim' ? 'justify-start' : 'justify-end'}`}>
+                  {t.role === 'jim' && (
+                    <div className="w-6 h-6 rounded-full bg-orange-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <span className="text-[9px] font-black text-white">J</span>
+                    </div>
+                  )}
+                  <div className={`px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed max-w-[88%] ${
+                    t.role === 'jim'
+                      ? 'bg-orange-600/20 border border-orange-500/30 text-orange-100'
+                      : 'bg-slate-700 text-slate-200'
+                  }`}>
+                    {t.text}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Mic row */}
+            <div className="flex items-center justify-center px-5 py-4 border-t border-slate-800 flex-shrink-0 pb-safe">
+              <button onClick={onMicTap} className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg active:scale-95 transition-all ${micBg}`} title={status === 'speaking' || status === 'thinking' ? 'Stop JIM' : 'Tap to Speak'}>
+                {status === 'speaking' || status === 'thinking' ? <Square size={22} className="text-white fill-white"/> : <Mic size={28} className="text-white"/>}
+              </button>
+            </div>
+          </div>
+        );
+      }
+
       return (
-        <div className="fixed bottom-20 inset-x-4 max-w-sm mx-auto z-[600] bg-slate-900/95 backdrop-blur-xl border border-slate-700 shadow-2xl rounded-3xl p-4 flex flex-col gap-4 animate-slide-up pointer-events-auto">
+        <div className="fixed bottom-20 inset-x-4 max-w-sm mx-auto z-[600] bg-slate-900/95 backdrop-blur-xl border border-slate-700 shadow-2xl rounded-3xl p-4 flex flex-col gap-3 animate-slide-up pointer-events-auto">
           {/* Header */}
-          <div className="flex justify-between items-center px-2">
+          <div className="flex justify-between items-center px-1">
             <div className="flex items-center gap-2">
-              <div className={`w-2.5 h-2.5 rounded-full ${status === 'listening' ? 'bg-emerald-500 animate-pulse' : status === 'speaking' ? 'bg-orange-500' : 'bg-slate-600'}`} />
+              <div className={`w-2.5 h-2.5 rounded-full ${dotColor}`} />
               <h2 className="text-white font-black text-sm tracking-tight uppercase">JIM Voice</h2>
             </div>
-            <button onClick={onClose} className="text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 p-1.5 rounded-full transition-colors">
-              <X size={16} />
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button onClick={() => setExpanded(true)} className="text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 p-1.5 rounded-full transition-colors" title="Expand">
+                <ChevronDown size={16} className="rotate-180" />
+              </button>
+              <button onClick={onClose} className="text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 p-1.5 rounded-full transition-colors">
+                <X size={16} />
+              </button>
+            </div>
           </div>
 
           {/* Transcript */}
           {transcript.length > 0 ? (
-            <div ref={transcriptRef} className="w-full max-h-32 overflow-y-auto custom-scrollbar bg-slate-800/50 rounded-2xl p-3 space-y-2 border border-slate-700/50">
+            <div ref={transcriptRef} className="w-full max-h-36 overflow-y-auto custom-scrollbar bg-slate-800/50 rounded-2xl p-3 space-y-2 border border-slate-700/50">
               {transcript.map((t, i) => (
                 <div key={i} className={`flex items-start gap-2 ${t.role === 'jim' ? 'justify-start' : 'justify-end'}`}>
                   {t.role === 'jim' && (
-                     <div className="w-5 h-5 rounded-full bg-orange-600 flex items-center justify-center flex-shrink-0 mt-0.5">
-                       <span className="text-[9px] font-black text-white">J</span>
-                     </div>
+                    <div className="w-5 h-5 rounded-full bg-orange-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <span className="text-[9px] font-black text-white">J</span>
+                    </div>
                   )}
                   <div className={`px-3 py-1.5 rounded-2xl text-xs leading-relaxed max-w-[85%] ${
                     t.role === 'jim'
@@ -1954,22 +2018,17 @@
               ))}
             </div>
           ) : (
-            <div className="w-full text-center text-slate-500 text-xs py-2">
-              <p>Ask about jobs, invoices, or revenue...</p>
+            <div className="w-full text-center text-slate-500 text-xs py-1">
+              <p>Ask about jobs, invoices, or how to use the app…</p>
             </div>
           )}
 
           {/* Bottom Row: Status & Mic */}
-          <div className="flex items-center justify-between px-2">
-            <p className={`text-xs font-bold tracking-wide uppercase ${status === 'error' ? 'text-red-400' : status === 'speaking' ? 'text-orange-400' : status === 'listening' ? 'text-emerald-400' : 'text-slate-400'}`}>
+          <div className="flex items-center justify-between px-1">
+            <p className={`text-xs font-bold tracking-wide uppercase ${statusColor}`}>
               {statusLabel[status] || '...'}
             </p>
-
-            <button
-              onClick={onMicTap}
-              className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg active:scale-95 transition-all ${status === 'speaking' || status === 'thinking' ? 'bg-amber-600 hover:bg-amber-500' : status === 'listening' ? 'bg-red-600 hover:bg-red-500' : 'bg-emerald-600 hover:bg-emerald-500'}`}
-              title={status === 'speaking' || status === 'thinking' ? "Stop JIM" : "Tap to Speak"}
-            >
+            <button onClick={onMicTap} className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg active:scale-95 transition-all ${micBg}`} title={status === 'speaking' || status === 'thinking' ? 'Stop JIM' : 'Tap to Speak'}>
               {status === 'speaking' || status === 'thinking' ? <Square size={20} className="text-white fill-white"/> : <Mic size={24} className="text-white"/>}
             </button>
           </div>
