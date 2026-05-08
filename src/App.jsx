@@ -1036,6 +1036,19 @@
     const [files, setFiles] = useState([]);
     const [isImporting, setIsImporting] = useState(false);
     const fileInputRef = useRef(null);
+    const jimAiStateOptions = ['idle', 'wave', 'thinking', 'empty'];
+    const [jimAiPos, setJimAiPos] = useState({ x: 40, y: 35 });
+    const [jimAiMood, setJimAiMood] = useState('thinking');
+    useEffect(() => {
+      if (!isImporting) return;
+      const move = () => {
+        setJimAiPos({ x: 5 + Math.random() * 68, y: 8 + Math.random() * 60 });
+        setJimAiMood(jimAiStateOptions[Math.floor(Math.random() * jimAiStateOptions.length)]);
+      };
+      move();
+      const id = setInterval(move, 1100);
+      return () => clearInterval(id);
+    }, [isImporting]);
 
     const handleFiles = (e) => { setFiles(prev => [...prev, ...Array.from(e.target.files)]); e.target.value = ''; };
     const removeFile = (index) => setFiles(prev => prev.filter((_,i) => i!==index));
@@ -1121,9 +1134,14 @@
       <div className="fixed inset-0 z-[150] bg-slate-900/90 backdrop-blur-md flex items-end sm:items-center justify-center sm:p-4">
         <div className="bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl w-full max-w-md shadow-2xl border dark:border-slate-800 relative overflow-hidden animate-slide-up sm:animate-none pb-safe">
           {isImporting && (
-            <div className="absolute inset-0 bg-slate-900/80 rounded-t-3xl sm:rounded-3xl flex flex-col items-center justify-center z-10 backdrop-blur-sm">
-              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-orange-500 mb-4"/>
-              <p className="text-white font-black text-sm uppercase">Processing with AI…</p>
+            <div className="absolute inset-0 bg-slate-900/85 rounded-t-3xl sm:rounded-3xl z-10 backdrop-blur-sm overflow-hidden">
+              <div style={{ position: 'absolute', left: `${jimAiPos.x}%`, top: `${jimAiPos.y}%`, transition: 'left 0.9s cubic-bezier(0.34,1.56,0.64,1), top 0.9s cubic-bezier(0.34,1.56,0.64,1)' }}>
+                <JimMascot size={72} state={jimAiMood}/>
+              </div>
+              <div className="absolute bottom-8 left-0 right-0 flex flex-col items-center gap-1.5 pointer-events-none">
+                <p className="text-white font-black text-sm uppercase tracking-widest">JIM is on it…</p>
+                <p className="text-slate-400 text-xs font-semibold">Hang tight</p>
+              </div>
             </div>
           )}
 
