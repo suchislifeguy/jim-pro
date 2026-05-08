@@ -1,4 +1,5 @@
   import React, { useState, useEffect, useRef, Component, useMemo } from 'react';
+  import ReloadPrompt from './components/ReloadPrompt';
   import { createPortal } from 'react-dom';
   import { get, set } from 'idb-keyval';
   import {
@@ -3951,6 +3952,7 @@ Return ONLY a valid JSON object. Format: {"cost": 123.45, "items": "Hammer\\nNai
         />}
 
         {appointmentFromJob && <AppointmentFormModal appointment={appointmentFromJob} jobs={jobs} onSave={handleSaveAppointment} onClose={() => setAppointmentFromJob(null)} showToast={showToast}/>}
+        <ReloadPrompt />
       </div>
     );
   };
