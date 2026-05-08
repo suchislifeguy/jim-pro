@@ -2169,7 +2169,9 @@
       if (sentCold.length) return { state: 'idle', msg: `${sentCold.length} quote${sentCold.length>1?'s':''} sitting cold for >7 days — follow up?` };
       if (approvedStale.length) return { state: 'idle', msg: `${approvedStale.length} approved job${approvedStale.length>1?'s':''} haven't kicked off yet.` };
       if (recentlyLost.length >= 3) return { state: 'idle', msg: `${recentlyLost.length} quotes lost in the last 30 days — ask JIM why.` };
-      return { state: 'wave', msg: `All looking good! ${jobs.length} project${jobs.length>1?'s':''} on the books.` };
+      const activeCount = jobs.filter(j => j.status !== 'rejected').length;
+      if (activeCount === 0) return { state: 'wave', msg: "G'day! Create your first quote or completion report to get started." };
+      return { state: 'wave', msg: `All looking good! ${activeCount} project${activeCount>1?'s':''} on the books.` };
     }, [jobs, businessProfile, revenueStats]);
 
     const clientsData = useMemo(() => {
@@ -2991,7 +2993,7 @@ Return ONLY a valid JSON object. Format: {"cost": 123.45, "items": "Hammer\\nNai
             {!selectionMode && (
               <>
                 {/* JIM Insight — speech bubble from the header mascot */}
-                {jobs.length > 0 && (
+                {(
                   <div className={`relative px-4 py-3 rounded-2xl mb-3 border ${jimInsight.state==='error' ? 'bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-900/60' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'}`}>
                     <div className={`absolute -top-1.5 left-4 w-3 h-3 rotate-45 border-l border-t ${jimInsight.state==='error' ? 'bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-900/60' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'}`}/>
                     <p className={`text-sm font-medium leading-snug ${jimInsight.state==='error' ? 'text-red-700 dark:text-red-300' : 'text-slate-700 dark:text-slate-300'}`}>{jimInsight.msg}</p>
