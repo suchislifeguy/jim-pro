@@ -28,3 +28,7 @@ firebase-debug.log
 *.njsproj
 *.sln
 *.sw?
+
+# API keys — never commit
+functions/.env
+functions/.secret.local

@@ -1,0 +1,211 @@
+// Cloudflare Worker — JIM AI Proxy
+
+const FREE_QUOTA = 3;
+const PRO_QUOTA  = 50;
+const GEMINI_BASE = 'https://generativelanguage.googleapis.com';
+const FIREBASE_PROJECT_ID = 'jim-pro-app-6acf6';
+const FIREBASE_API_KEY = 'AIzaSyC8cLcvakuTxWP652GJ9eRDRW9_rnMVco8'; // public client key
+
+const ALLOWED_ORIGINS = [
+  'https://jim-pro-app-6acf6.web.app',
+  'https://jim-pro-app-6acf6.firebaseapp.com',
+  'http://localhost:5173',
+  'http://localhost:4173',
+];
+
+const HEAVY_MODELS = ['gemini-2.5-flash-preview-05-20', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+const LIGHT_MODELS = ['gemini-2.0-flash-lite', 'gemini-2.0-flash', 'gemini-1.5-flash-8b'];
+
+function corsHeaders(origin) {
+  const allowed = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  return {
+    'Access-Control-Allow-Origin': allowed,
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-File-Size',
+    'Access-Control-Max-Age': '3600',
+  };
+}
+
+function jsonResponse(data, status = 200, origin = '') {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+  });
+}
+
+async function verifyFirebaseToken(idToken) {
+  const res = await fetch(
+    `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${FIREBASE_API_KEY}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken }),
+    }
+  );
+  if (!res.ok) throw Object.assign(new Error('Invalid token'), { status: 401 });
+  const data = await res.json();
+  const uid = data.users?.[0]?.localId;
+  if (!uid) throw Object.assign(new Error('User not found'), { status: 401 });
+  return uid;
+}
+
+async function getIsPro(uid, idToken) {
+  try {
+    const res = await fetch(
+      `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/users/${uid}/data/profile`,
+      { headers: { 'Authorization': `Bearer ${idToken}` } }
+    );
+    if (!res.ok) return false;
+    const doc = await res.json();
+    return doc.fields?.payload?.mapValue?.fields?.isPro?.booleanValue === true;
+  } catch {
+    return false;
+  }
+}
+
+async function checkAndIncrementQuota(uid, isPro, env) {
+  const limit = isPro ? PRO_QUOTA : FREE_QUOTA;
+  const today = new Date().toISOString().slice(0, 10);
+  const key = `quota:${uid}:${today}`;
+
+  const existing = await env.QUOTA.get(key);
+  const count = existing ? parseInt(existing, 10) : 0;
+
+  if (count >= limit) return { allowed: false, remaining: 0 };
+
+  await env.QUOTA.put(key, String(count + 1), { expirationTtl: 172800 }); // auto-expire in 48h
+  return { allowed: true, remaining: limit - count - 1 };
+}
+
+function buildModelList(taskType, hint) {
+  const base = taskType === 'heavy' ? [...HEAVY_MODELS] : [...LIGHT_MODELS];
+  if (hint) return [...new Set([hint, ...base])];
+  return base;
+}
+
+async function cascadeGenerate(models, body, apiKey) {
+  let lastErr;
+  for (const model of models) {
+    try {
+      const res = await fetch(
+        `${GEMINI_BASE}/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+      );
+      if (res.ok) return await res.json();
+      const errText = await res.text();
+      if (res.status === 429 || res.status === 404 || res.status >= 500) {
+        lastErr = new Error(`[${model}] ${res.status}`);
+        continue;
+      }
+      const err = new Error(`[${model}] ${res.status}: ${errText}`);
+      err.geminiStatus = res.status;
+      throw err;
+    } catch (err) {
+      if (err.geminiStatus !== undefined) throw err;
+      lastErr = err;
+    }
+  }
+  const err = lastErr || new Error('All models failed');
+  err.cascadeExhausted = true;
+  throw err;
+}
+
+async function handleAiGenerate(request, env, origin) {
+  const authHeader = request.headers.get('Authorization') || '';
+  const idToken = authHeader.replace('Bearer ', '');
+  if (!idToken) return jsonResponse({ error: 'Missing token' }, 401, origin);
+
+  let uid;
+  try { uid = await verifyFirebaseToken(idToken); }
+  catch (err) { return jsonResponse({ error: err.message }, err.status || 401, origin); }
+
+  let body;
+  try { body = await request.json(); }
+  catch { return jsonResponse({ error: 'Invalid JSON' }, 400, origin); }
+
+  const { taskType, contents, generationConfig, userModelHint } = body;
+  if (!contents || !Array.isArray(contents)) {
+    return jsonResponse({ error: 'Missing contents array' }, 400, origin);
+  }
+
+  const isPro = await getIsPro(uid, idToken);
+  const quota = await checkAndIncrementQuota(uid, isPro, env);
+
+  if (!quota.allowed) {
+    return jsonResponse({
+      error: 'Daily AI quota exceeded',
+      code: 'QUOTA_EXCEEDED',
+      isPro,
+      limit: isPro ? PRO_QUOTA : FREE_QUOTA,
+    }, 429, origin);
+  }
+
+  const models = buildModelList(taskType || 'light', userModelHint || null);
+
+  try {
+    const data = await cascadeGenerate(
+      models,
+      { contents, generationConfig: generationConfig || {} },
+      env.GEMINI_API_KEY
+    );
+    return jsonResponse({ ...data, _meta: { remaining: quota.remaining, isPro } }, 200, origin);
+  } catch (err) {
+    if (err.cascadeExhausted) {
+      return jsonResponse({ error: 'AI overloaded — try again shortly', code: 'GEMINI_OVERLOADED' }, 503, origin);
+    }
+    return jsonResponse({ error: `AI request failed: ${err.message}`, code: 'GEMINI_ERROR' }, 502, origin);
+  }
+}
+
+async function handleAiUploadFile(request, env, origin) {
+  const authHeader = request.headers.get('Authorization') || '';
+  const idToken = authHeader.replace('Bearer ', '');
+  if (!idToken) return jsonResponse({ error: 'Missing token' }, 401, origin);
+
+  try { await verifyFirebaseToken(idToken); }
+  catch (err) { return jsonResponse({ error: err.message }, err.status || 401, origin); }
+
+  const contentType = request.headers.get('Content-Type') || 'application/octet-stream';
+  const fileSize = request.headers.get('X-File-Size') || '0';
+  const body = await request.arrayBuffer();
+
+  try {
+    const uploadRes = await fetch(`${GEMINI_BASE}/upload/v1beta/files?key=${env.GEMINI_API_KEY}`, {
+      method: 'POST',
+      headers: {
+        'X-Goog-Upload-Protocol': 'raw',
+        'X-Goog-Upload-Header-Content-Length': fileSize,
+        'X-Goog-Upload-Header-Content-Type': contentType,
+        'Content-Type': contentType,
+      },
+      body,
+    });
+    if (!uploadRes.ok) {
+      const errText = await uploadRes.text();
+      return jsonResponse({ error: `Gemini upload failed: ${errText}` }, 502, origin);
+    }
+    return jsonResponse(await uploadRes.json(), 200, origin);
+  } catch (err) {
+    return jsonResponse({ error: `Upload error: ${err.message}` }, 502, origin);
+  }
+}
+
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+    const origin = request.headers.get('Origin') || '';
+
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { status: 204, headers: corsHeaders(origin) });
+    }
+
+    if (request.method !== 'POST') {
+      return new Response('Method Not Allowed', { status: 405 });
+    }
+
+    if (url.pathname === '/aiGenerate')   return handleAiGenerate(request, env, origin);
+    if (url.pathname === '/aiUploadFile') return handleAiUploadFile(request, env, origin);
+
+    return new Response('Not Found', { status: 404 });
+  },
+};

@@ -1,0 +1,21 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // User data: owner read/write only
+    match /users/{uid}/data/{key} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // Quota: owner can read, write only via Admin SDK (Cloud Functions)
+    match /users/{uid}/quota/{doc} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    // Deny everything else
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

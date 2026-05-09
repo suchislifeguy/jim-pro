@@ -230,44 +230,48 @@
   const isExpiringSoon = (expiryStr) => { if (!expiryStr) return false; const diff = new Date(expiryStr) - new Date(); return diff > 0 && diff < 60 * 24 * 60 * 60 * 1000; };
   const isExpired = (expiryStr) => { if (!expiryStr) return false; return new Date(expiryStr) < new Date(); };
 
-  // --- Core AI "Smart Router" & Waterfall ---
-  const smartFetchAI = async (taskType, contents, generationConfig, apiKey, userModel) => {
-    const heavyModels = [userModel, 'gemini-3.1-flash-lite-preview', 'gemini-3.0-flash', 'gemini-2.5-flash'];
-    const lightModels = [userModel, 'gemini-3.1-flash-lite-preview', 'gemini-3.0-flash', 'gemini-2.5-flash-lite'];
+  // --- AI Proxy ---
+  const AI_PROXY_BASE = import.meta.env.VITE_AI_PROXY_URL ||
+    'https://us-central1-jim-pro-app-6acf6.cloudfunctions.net';
 
-    const models = taskType === 'heavy' ? heavyModels : lightModels;
-    const uniqueModels = [...new Set(models)].filter(Boolean);
-
-    let lastError;
-    for (const model of uniqueModels) {
-      try {
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contents, generationConfig })
-        });
-
-        if (!res.ok) {
-          let errText = await res.text();
-          try {
-            const parsed = JSON.parse(errText);
-            if (parsed.error && parsed.error.message) {
-              errText = parsed.error.message;
-            }
-          } catch(e) {}
-          throw new Error(`[${model}] ${errText}`);
-        }
-
-        return await res.json();
-      } catch (err) {
-        if (err.message.includes('429') || err.message.includes('404') || err.message.includes('50') || err.message.includes('fetch')) {
-          lastError = err;
-          continue;
-        }
-        throw err;
-      }
+  const smartFetchAI = async (taskType, contents, generationConfig, user, userModelHint) => {
+    const idToken = await user.getIdToken();
+    const res = await fetch(`${AI_PROXY_BASE}/aiGenerate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+      body: JSON.stringify({ taskType, contents, generationConfig, userModelHint }),
+    });
+    if (res.ok) return await res.json();
+    let errBody = {};
+    try { errBody = await res.json(); } catch {}
+    if (res.status === 429 && errBody.code === 'QUOTA_EXCEEDED') {
+      const err = new Error(errBody.isPro
+        ? `You've used all ${errBody.limit} AI calls for today. Try again tomorrow.`
+        : `You've used your ${errBody.limit} free AI calls for today. Upgrade for more.`
+      );
+      err.code = 'QUOTA_EXCEEDED';
+      err.isPro = errBody.isPro;
+      throw err;
     }
-    throw lastError || new Error("All fallback models failed.");
+    if (res.status === 503 && errBody.code === 'GEMINI_OVERLOADED') {
+      throw new Error('AI is overloaded right now — try again in a minute.');
+    }
+    throw new Error(errBody.error || `AI request failed (${res.status})`);
+  };
+
+  const aiUploadFileProxy = async (file, user) => {
+    const idToken = await user.getIdToken();
+    const res = await fetch(`${AI_PROXY_BASE}/aiUploadFile`, {
+      method: 'POST',
+      headers: { 'Content-Type': file.type, 'Authorization': `Bearer ${idToken}`, 'X-File-Size': String(file.size) },
+      body: file,
+    });
+    if (!res.ok) {
+      let errBody = {};
+      try { errBody = await res.json(); } catch {}
+      throw new Error(errBody.error || `Upload failed (${res.status})`);
+    }
+    return await res.json();
   };
 
   const getQuoteTotals = (tasks, gstEnabled, extraTaxRate = 0) => {
@@ -525,7 +529,7 @@
     );
   };
 
-  const AIAssistModal = ({ onClose, onGenerate, isGenerating, docType, apiKey, toggleVoice, listeningField }) => {
+  const AIAssistModal = ({ onClose, onGenerate, isGenerating, docType, toggleVoice, listeningField }) => {
     const [prompt, setPrompt] = useState('');
     return (
       <div className="fixed inset-0 z-[600] bg-slate-900/90 backdrop-blur-md flex items-end sm:items-center justify-center sm:p-4 animate-slide-up sm:animate-none">
@@ -534,40 +538,34 @@
             <h3 className="font-black text-lg flex items-center gap-2"><Sparkles className="text-purple-500" size={20}/> Ask JIM</h3>
             <button onClick={onClose} aria-label="Close" className="w-9 h-9 flex items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-full text-slate-500 hover:text-slate-700 dark:hover:text-white transition-colors"><X size={18}/></button>
           </div>
-          {!apiKey ? (
-            <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-xl border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-sm font-bold mb-4">Please add your Gemini API Key in Settings to use Ask JIM features.</div>
-          ) : (
-            <>
-              <p className="text-sm text-slate-500 dark:text-slate-400 mb-4 font-medium leading-relaxed">Give JIM a nudge — any extra details and he'll write your {docType} around them.</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mb-4 font-medium leading-relaxed">Give JIM a nudge — any extra details and he'll write your {docType} around them.</p>
 
-              <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-purple-500 bg-slate-50 dark:bg-slate-800 mb-4 transition-shadow">
-                <textarea
-                  className="w-full p-4 bg-transparent outline-none text-sm font-medium h-32 resize-none dark:text-white dark:placeholder-slate-500"
-                  placeholder="Additional instructions (optional)…"
-                  value={prompt}
-                  onChange={e => setPrompt(e.target.value)}
-                />
-                <div className="flex justify-end bg-slate-100 dark:bg-slate-700/50 px-2 py-1.5 border-t border-slate-200 dark:border-slate-700">
-                  <button type="button" onClick={() => toggleVoice('aiAssistPrompt', (val) => setPrompt(prev => typeof val === 'function' ? val(prev) : val))} className={`p-1.5 rounded-lg transition-colors flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest ${listeningField==='aiAssistPrompt' ? 'bg-red-500 text-white animate-pulse' : 'text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-600'}`}>
-                    <Mic size={14}/> Dictate
-                  </button>
-                </div>
-              </div>
+          <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-purple-500 bg-slate-50 dark:bg-slate-800 mb-4 transition-shadow">
+            <textarea
+              className="w-full p-4 bg-transparent outline-none text-sm font-medium h-32 resize-none dark:text-white dark:placeholder-slate-500"
+              placeholder="Additional instructions (optional)…"
+              value={prompt}
+              onChange={e => setPrompt(e.target.value)}
+            />
+            <div className="flex justify-end bg-slate-100 dark:bg-slate-700/50 px-2 py-1.5 border-t border-slate-200 dark:border-slate-700">
+              <button type="button" onClick={() => toggleVoice('aiAssistPrompt', (val) => setPrompt(prev => typeof val === 'function' ? val(prev) : val))} className={`p-1.5 rounded-lg transition-colors flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest ${listeningField==='aiAssistPrompt' ? 'bg-red-500 text-white animate-pulse' : 'text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-600'}`}>
+                <Mic size={14}/> Dictate
+              </button>
+            </div>
+          </div>
 
-              {isGenerating && (
-                <div className="flex flex-col items-center gap-2 py-2 mb-2">
-                  <JimMascot size={52} state="thinking"/>
-                  <p className="text-xs font-black text-purple-500 uppercase tracking-widest">JIM is thinking…</p>
-                </div>
-              )}
-              <div className="flex gap-3">
-                <button onClick={onClose} className="flex-1 bg-slate-100 dark:bg-slate-800 py-4 rounded-2xl font-black text-slate-600 dark:text-slate-300 active:scale-95 transition-all">Cancel</button>
-                <button onClick={() => onGenerate(prompt)} disabled={isGenerating} className={`flex-1 text-white py-4 rounded-2xl font-black flex items-center justify-center gap-2 transition-all active:scale-95 ${isGenerating ? 'bg-purple-400 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-500 shadow-lg shadow-purple-500/20'}`}>
-                  {isGenerating ? <><JimMascot size={20} state="thinking"/> Working…</> : <><Sparkles size={16}/> Generate</>}
-                </button>
-              </div>
-            </>
+          {isGenerating && (
+            <div className="flex flex-col items-center gap-2 py-2 mb-2">
+              <JimMascot size={52} state="thinking"/>
+              <p className="text-xs font-black text-purple-500 uppercase tracking-widest">JIM is thinking…</p>
+            </div>
           )}
+          <div className="flex gap-3">
+            <button onClick={onClose} className="flex-1 bg-slate-100 dark:bg-slate-800 py-4 rounded-2xl font-black text-slate-600 dark:text-slate-300 active:scale-95 transition-all">Cancel</button>
+            <button onClick={() => onGenerate(prompt)} disabled={isGenerating} className={`flex-1 text-white py-4 rounded-2xl font-black flex items-center justify-center gap-2 transition-all active:scale-95 ${isGenerating ? 'bg-purple-400 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-500 shadow-lg shadow-purple-500/20'}`}>
+              {isGenerating ? <><JimMascot size={20} state="thinking"/> Working…</> : <><Sparkles size={16}/> Generate</>}
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -793,8 +791,7 @@
     );
   };
 
-  const SettingsModal = ({ apiKey, geminiModel, extraTaxRate, countryCode, onSave, onClose, isDarkMode, toggleTheme, exportData, importData, userTemplates, saveUserTemplates, userMaterials, saveUserMaterials, businessProfile, saveBusinessProfile, showToast, dbSize, isPro, onUnlockPro }) => {
-    const [draftKey, setDraftKey] = useState(apiKey);
+  const SettingsModal = ({ geminiModel, extraTaxRate, countryCode, onSave, onClose, isDarkMode, toggleTheme, exportData, importData, userTemplates, saveUserTemplates, userMaterials, saveUserMaterials, businessProfile, saveBusinessProfile, showToast, dbSize, isPro, onUnlockPro }) => {
     const [draftModel, setDraftModel] = useState(geminiModel);
     const [draftExtraTax, setDraftExtraTax] = useState(extraTaxRate);
     const [draftCountry, setDraftCountry] = useState(countryCode || 'AU');
@@ -803,7 +800,7 @@
     const [showBusiness, setShowBusiness] = useState(false);
     const [licenceInput, setLicenceInput] = useState('');
     const [activeTab, setActiveTab] = useState('business');
-    const save = () => { onSave(draftKey, draftModel, draftExtraTax, draftCountry); onClose(); showToast('Settings Saved', 'success'); };
+    const save = () => { onSave(draftModel, draftExtraTax, draftCountry); onClose(); showToast('Settings Saved', 'success'); };
     const hasBiz = !!businessProfile?.name;
 
     const handleLicenceUnlock = () => {
@@ -819,7 +816,7 @@
     const tabs = [
       { key: 'business', label: 'Business', badge: expiringCount > 0 ? expiringCount : (!hasBiz ? '!' : null) },
       { key: 'library',  label: 'Library' },
-      { key: 'app',      label: 'App',     badge: !apiKey ? '!' : null },
+      { key: 'app',      label: 'App',     badge: null },
     ];
 
     const sectionLabel = "text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2";
@@ -945,15 +942,15 @@
                   </button>
                 </div>
 
-                {/* Gemini API */}
+                {/* AI Model Preference */}
                 <div>
-                  <label className={sectionLabel}>Google AI</label>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mb-3 leading-relaxed">JIM uses smart routing with intelligent fallback models. Add your free Gemini API key to enable AI features.</p>
-                  <input type="password" className="w-full h-11 px-3.5 mb-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-mono text-sm dark:text-white dark:placeholder-slate-500 focus:border-orange-400 focus:ring-1 focus:ring-orange-400/40 transition-all" placeholder="Paste your Gemini API key…" value={draftKey} onChange={e => setDraftKey(e.target.value)}/>
+                  <label className={sectionLabel}>AI Model Preference</label>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mb-3 leading-relaxed">JIM's AI is built in — no API key needed. Optionally hint a preferred Gemini model; JIM will fall back automatically if it's unavailable.</p>
                   <div className="relative">
                     <Bot size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input type="text" className="w-full pl-10 pr-3.5 h-11 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-mono text-sm text-slate-700 dark:text-slate-200 focus:border-orange-400 focus:ring-1 focus:ring-orange-400/40 transition-all" placeholder="Model name" value={draftModel} onChange={e => setDraftModel(e.target.value)}/>
+                    <input type="text" className="w-full pl-10 pr-3.5 h-11 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-mono text-sm text-slate-700 dark:text-slate-200 focus:border-orange-400 focus:ring-1 focus:ring-orange-400/40 transition-all" placeholder="Model hint (optional)" value={draftModel} onChange={e => setDraftModel(e.target.value)}/>
                   </div>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-2">{isPro ? `Pro — ${50} AI calls/day` : `Free — 3 AI calls/day · Upgrade for 50/day`}</p>
                 </div>
 
                 {/* Pro Licence */}
@@ -1019,7 +1016,7 @@
     );
   };
 
-  const NewJobModal = ({ type, onSave, onClose, apiKey, geminiModel, showToast, toggleVoice, listeningField, jobs }) => {
+  const NewJobModal = ({ type, onSave, onClose, user, geminiModel, showToast, toggleVoice, listeningField, jobs, onQuotaExceeded }) => {
     const [addr, setAddr] = useState('');
     const [client, setClient] = useState('');
     const [phone, setPhone] = useState('');
@@ -1057,7 +1054,6 @@
     const createManual = () => { if (!addr.trim()) return showToast('Address is required', 'error'); onSave(addr.trim(), client.trim(), phone.trim(), [], dueDate, email.trim()); };
 
     const createWithAI = async () => {
-      if (!apiKey) { showToast('Please save a Gemini API key in Settings first.', 'error'); return; }
       setIsImporting(true);
       try {
         const fileParts = [];
@@ -1065,34 +1061,18 @@
           if (file.type === 'application/pdf') {
             let useFallback = false;
             try {
-              const uploadRes = await fetch(`https://generativelanguage.googleapis.com/upload/v1beta/files?key=${apiKey}`, {
-                method: 'POST',
-                headers: {
-                  'X-Goog-Upload-Protocol': 'raw',
-                  'X-Goog-Upload-Header-Content-Length': file.size.toString(),
-                  'X-Goog-Upload-Header-Content-Type': file.type,
-                  'Content-Type': file.type
-                },
-                body: file
-              });
-              if (!uploadRes.ok) {
-                console.warn(`Upload API rejected: ${uploadRes.status}`);
+              const uploadData = await aiUploadFileProxy(file, user);
+              if (!uploadData.file || !uploadData.file.uri) {
                 useFallback = true;
               } else {
-                const uploadData = await uploadRes.json();
-                if (!uploadData.file || !uploadData.file.uri) {
-                  useFallback = true;
-                } else {
-                  fileParts.push({ fileData: { mimeType: file.type, fileUri: uploadData.file.uri } });
-                }
+                fileParts.push({ fileData: { mimeType: file.type, fileUri: uploadData.file.uri } });
               }
             } catch (err) {
-              console.warn("Upload fetch error:", err);
+              console.warn("Upload proxy error:", err);
               useFallback = true;
             }
 
             if (useFallback) {
-              console.log("Using inline base64 fallback for PDF...");
               const base64Data = await new Promise((resolve, reject) => {
                 const reader = new FileReader();
                 reader.onload = () => resolve(reader.result.split(',')[1]);
@@ -1115,7 +1095,7 @@
           'heavy',
           [{ parts: [{ text: textPrompt }, ...fileParts] }],
           { temperature: 0, response_mime_type: 'application/json' },
-          apiKey,
+          user,
           geminiModel
         );
 
@@ -1125,12 +1105,14 @@
         const tasks = (json.tasks || []).map(t => ({ title: t.title||'', time: t.time||'', rate: String(t.rate||''), materialsCost: String(t.materialsCost||''), materials: toListString(t.materials), tools: toListString(t.tools), desc: t.desc||'', images:[] }));
         onSave(json.address || addr, json.clientName || client, json.clientPhone || phone, tasks, json.dueDate || dueDate, json.clientEmail || email);
         showToast('JIM sorted it — check the details!', 'success');
-      } catch (err) { console.error("AI Import Error details:", err); showToast(`JIM hit a wall: ${err.message}`, 'error'); }
-      finally { setIsImporting(false); }
+      } catch (err) {
+        if (err.code === 'QUOTA_EXCEEDED') { onQuotaExceeded?.(); showToast(err.message, 'error'); }
+        else { console.error("AI Import Error:", err); showToast(`JIM hit a wall: ${err.message}`, 'error'); }
+      } finally { setIsImporting(false); }
     };
 
     const isHandover = type === 'handover';
-    const canUseAI = apiKey && (files.length > 0 || additionalText.trim().length > 0);
+    const canUseAI = files.length > 0 || additionalText.trim().length > 0;
 
     return (
       <div className="fixed inset-0 z-[150] bg-slate-900/90 backdrop-blur-md flex items-end sm:items-center justify-center sm:p-4">
@@ -2181,8 +2163,7 @@
     const [isLoading, setIsLoading] = useState(true);
     const [listeningField, setListeningField] = useState(null);
     const recognitionRef = useRef(null);
-    const [apiKey, setApiKey] = useState(() => localStorage.getItem('geminiApiKey') || '');
-    const [geminiModel, setGeminiModel] = useState(() => localStorage.getItem('geminiModel') || 'gemini-3.1-flash-lite-preview');
+    const [geminiModel, setGeminiModel] = useState(() => localStorage.getItem('geminiModel') || 'gemini-2.0-flash-lite');
     const [confirmDialog, setConfirmDialog] = useState(null);
     const [printPreviewJob, setPrintPreviewJob] = useState(null);
     const [selectedJobs, setSelectedJobs] = useState([]);
@@ -2532,7 +2513,7 @@ SETTINGS (gear icon on the dashboard):
 - Country: sets your currency, tax label (${cc.taxLabel}), and trade conventions. Currently set to ${cc.name}.
 - Extra tax rate: add a second tax line (e.g. state levy) on top of ${cc.taxLabel} if needed.
 - Dark mode: toggle between light and dark theme.
-- Gemini API Key: paste your Google Gemini API key here to unlock all of JIM's AI features. Get one free at aistudio.google.com.
+- AI features are built in — no setup needed. Ask JIM, receipt scan, polish, and document generation all work out of the box.
 - Templates: save your commonly used tasks as reusable templates. Tap "Templates" in Settings to manage them.
 - Materials library: save your go-to materials with prices so you can insert them into jobs quickly.
 - Export data: downloads a JSON backup of all your jobs — good for peace of mind.
@@ -2571,7 +2552,6 @@ ${weekSheets || '  No time entries this week.'}`;
     };
 
     const handleAnalyzeLostPile = async () => {
-      if (!apiKey) { showToast('Add your Gemini API key in Settings first.', 'error'); return; }
       const lost = jobs.filter(j => j.status === 'rejected');
       const won = jobs.filter(j => ['approved','in_progress','completed','invoiced','paid'].includes(j.status));
       if (lost.length === 0) { showToast('No lost quotes to analyse yet.', 'info'); return; }
@@ -2591,23 +2571,19 @@ ${lost.map(fmt).join('\n')}
 WON (${won.length}):
 ${won.map(fmt).join('\n')}`;
       try {
-        const resData = await smartFetchAI('heavy', [{ parts: [{ text: prompt }] }], { temperature: 0.4 }, apiKey, geminiModel);
+        const resData = await smartFetchAI('heavy', [{ parts: [{ text: prompt }] }], { temperature: 0.4 }, user, geminiModel);
         const text = resData?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
         if (text) setLostAnalysis(text);
         else showToast('No analysis returned — try again.', 'error');
       } catch (err) {
-        showToast('Analysis failed: ' + err.message, 'error');
+        if (err.code === 'QUOTA_EXCEEDED') { setShowUpgrade(true); showToast(err.message, 'error'); }
+        else showToast('Analysis failed: ' + err.message, 'error');
       } finally {
         setIsAnalyzingLost(false);
       }
     };
 
     const startJimLive = async () => {
-      if (!apiKey) {
-        showToast('Add your Gemini API key in Settings first.', 'error');
-        return;
-      }
-
       // Prevent multiple instances
       if (jimActiveRef.current) {
         stopJimLive();
@@ -2686,7 +2662,7 @@ ${won.map(fmt).join('\n')}`;
             'light',
             [{ parts: [{ text: `${buildJimContext()}\n\nUser said: "${userText}"\n\nReply as JIM. No greeting. Get straight to the point. 1-2 sentences max, use actual job data.` }] }],
             { temperature: 0.7, maxOutputTokens: 150 },
-            apiKey,
+            user,
             geminiModel
           );
           if (!active()) { isProcessing = false; return; }
@@ -2804,7 +2780,6 @@ ${won.map(fmt).join('\n')}`;
     const handleUnlockSuccess = (keyData) => { setIsUnlocked(true); localStorage.setItem('joblog-unlocked', 'true'); if (keyData) localStorage.setItem('joblog-licence', JSON.stringify(keyData)); };
 
     const handleGenerateDocument = async (customPrompt) => {
-      if (!apiKey) { showToast('Please add your Gemini API key in Settings.', 'error'); return; }
       setIsGenerating(true);
       try {
         const job = activeJob;
@@ -2836,7 +2811,7 @@ Return ONLY a valid JSON object with: "summary", "tasks" (array of {title, desc}
           'heavy',
           [{ parts: [{ text: prompt }] }],
           { temperature: 0.3, response_mime_type: 'application/json' },
-          apiKey,
+          user,
           geminiModel
         );
         const raw = resData?.candidates?.[0]?.content?.parts?.[0]?.text || '';
@@ -2846,7 +2821,10 @@ Return ONLY a valid JSON object with: "summary", "tasks" (array of {title, desc}
         setPrintPreviewJob({ ...job, projectNotes: result.summary + (result.footer ? '\n\n' + result.footer : ''), tasks: updatedTasks });
         setShowAIAssistModal(false);
         showToast(`JIM built your ${docType} — look it over!`, 'success');
-      } catch (err) { showToast('Failed to generate document: ' + err.message, 'error'); }
+      } catch (err) {
+        if (err.code === 'QUOTA_EXCEEDED') { setShowUpgrade(true); showToast(err.message, 'error'); }
+        else showToast('Failed to generate document: ' + err.message, 'error');
+      }
       finally { setIsGenerating(false); }
     };
 
@@ -2869,7 +2847,6 @@ Return ONLY a valid JSON object with: "summary", "tasks" (array of {title, desc}
     const [isAiSuggesting, setIsAiSuggesting] = useState(false);
     const handleAiSuggest = async () => {
       if (!taskData.title.trim() && !taskData.desc.trim()) { showToast('Enter at least a title or description first.', 'error'); return; }
-      if (!apiKey) { showToast('Please add your Gemini API key in Settings first.', 'error'); return; }
       setIsAiSuggesting(true);
       const cc = getCC();
       const prompt = `You are a ${cc.name} construction trade assistant. Suggest realistic values for this task. Currency is ${cc.currency} (${cc.symbol}). Use ${cc.name} trade terminology, supplier names, and material conventions.
@@ -2890,7 +2867,7 @@ Return ONLY a valid JSON object with keys: "title", "time" (e.g. "2h 30m"), "rat
           'light',
           [{ parts: [{ text: prompt }] }],
           { temperature: 0.3, response_mime_type: 'application/json' },
-          apiKey,
+          user,
           geminiModel
         );
         const raw = resData?.candidates?.[0]?.content?.parts?.[0]?.text || '';
@@ -2900,13 +2877,15 @@ Return ONLY a valid JSON object with keys: "title", "time" (e.g. "2h 30m"), "rat
         const aiTools = toListString(json.tools);
         setTaskData(prev => ({ ...prev, title: json.title||prev.title, time: json.time||prev.time, rate: json.rate||prev.rate, materialsCost: json.materialsCost||prev.materialsCost, materials: aiMaterials||prev.materials, tools: aiTools||prev.tools, desc: json.desc||prev.desc }));
         showToast('Suggestions applied!', 'success');
-      } catch (err) { showToast(`AI suggest failed: ${err.message}`, 'error'); }
+      } catch (err) {
+        if (err.code === 'QUOTA_EXCEEDED') { setShowUpgrade(true); showToast(err.message, 'error'); }
+        else showToast(`AI suggest failed: ${err.message}`, 'error');
+      }
       finally { setIsAiSuggesting(false); }
     };
 
     const handleProfessionalize = async () => {
       if (!taskData.desc) return showToast('Enter description first', 'error');
-      if (!apiKey) return showToast('Add Gemini API Key in settings', 'error');
       setIsProfessionalizing(true);
       try {
         const cc = getCC();
@@ -2915,18 +2894,20 @@ Return ONLY a valid JSON object with keys: "title", "time" (e.g. "2h 30m"), "rat
           'light',
           [{ parts: [{ text: prompt }] }],
           { temperature: 0.2 },
-          apiKey,
+          user,
           geminiModel
         );
         const text = resData.candidates[0].content.parts[0].text.trim();
         setTaskData(p => ({...p, desc: text}));
         showToast('Text professionalized!', 'success');
-      } catch (e) { showToast("JIM couldn't polish that one", 'error'); } finally { setIsProfessionalizing(false); }
+      } catch (e) {
+        if (e.code === 'QUOTA_EXCEEDED') { setShowUpgrade(true); showToast(e.message, 'error'); }
+        else showToast("JIM couldn't polish that one", 'error');
+      } finally { setIsProfessionalizing(false); }
     };
 
     const handleScanReceipt = async (e) => {
       const file = e.target.files[0]; if (!file) return;
-      if (!apiKey) { showToast('Add Gemini API key in Settings to use receipt scanner.', 'error'); return; }
       setIsScanningReceipt(true);
       try {
         const base64Data = await compressImage(file);
@@ -2944,7 +2925,7 @@ Return ONLY a valid JSON object. Format: {"cost": 123.45, "items": "Hammer\\nNai
           'light',
           [{ parts: [{ text: textPrompt }, { inlineData: { mimeType: 'image/webp', data: base64Data.split(',')[1] } }] }],
           { temperature: 0, response_mime_type: 'application/json' },
-          apiKey,
+          user,
           geminiModel
         );
 
@@ -2953,7 +2934,10 @@ Return ONLY a valid JSON object. Format: {"cost": 123.45, "items": "Hammer\\nNai
         const newItems = Array.isArray(json.items) ? json.items.filter(Boolean).join('\n') : String(json.items || '');
         setTaskData(prev => ({ ...prev, materialsCost: json.cost ? String(json.cost) : prev.materialsCost, materials: prev.materials ? prev.materials + (newItems ? '\n' + newItems : '') : newItems }));
         showToast('Receipt scanned successfully!', 'success');
-      } catch (err) { showToast(`Receipt scan failed: ${err.message}`, 'error'); }
+      } catch (err) {
+        if (err.code === 'QUOTA_EXCEEDED') { setShowUpgrade(true); showToast(err.message, 'error'); }
+        else showToast(`Receipt scan failed: ${err.message}`, 'error');
+      }
       finally { setIsScanningReceipt(false); }
       e.target.value = '';
     };
@@ -3730,7 +3714,7 @@ Return ONLY a valid JSON object. Format: {"cost": 123.45, "items": "Hammer\\nNai
             { key: 'home', icon: Home, label: 'Home', active: viewMode==='dashboard' && !selectionMode, onClick: () => { setViewMode('dashboard'); setSelectionMode(false); } },
             { key: 'route', icon: Map, label: selectionMode ? 'Done' : 'Route', active: selectionMode, onClick: () => { setViewMode('dashboard'); setSelectionMode(!selectionMode); } },
             { key: 'schedule', icon: Calendar, label: 'Schedule', active: viewMode==='schedule', onClick: () => setViewMode('schedule') },
-            { key: 'settings', icon: Settings, label: 'Settings', active: false, badge: !apiKey || expiringCreds.length > 0, onClick: () => setShowSettings(true) },
+            { key: 'settings', icon: Settings, label: 'Settings', active: false, badge: expiringCreds.length > 0, onClick: () => setShowSettings(true) },
           ].map(item => {
             const Icon = item.icon;
             return (
@@ -3747,11 +3731,11 @@ Return ONLY a valid JSON object. Format: {"cost": 123.45, "items": "Hammer\\nNai
         {jimLiveOpen && <JimLivePanel status={jimLiveStatus} transcript={jimLiveTranscript} onClose={stopJimLive} onMicTap={handleMicTap}/>}
 
         {/* Modals */}
-        {showSettings && <SettingsModal apiKey={apiKey} geminiModel={geminiModel} extraTaxRate={extraTaxRate} countryCode={countryCode} isDarkMode={isDarkMode} toggleTheme={() => setIsDarkMode(!isDarkMode)} exportData={exportData} importData={importData} userTemplates={userTemplates} saveUserTemplates={saveUserTemplates} userMaterials={userMaterials} saveUserMaterials={saveUserMaterials} businessProfile={businessProfile} saveBusinessProfile={saveBusinessProfile} onSave={(k,m,t,cc) => { setApiKey(k); setGeminiModel(m); setExtraTaxRate(Number(t)); const c = cc||'AU'; localStorage.setItem('geminiApiKey',k); localStorage.setItem('geminiModel',m); localStorage.setItem('joblog-extratax', t); localStorage.setItem('jim-country', c); _cc = c; setCountryCode(c); }} onClose={() => setShowSettings(false)} showToast={showToast} dbSize={dbSize} isPro={isUnlocked} onUnlockPro={handleUnlockSuccess}/>}
+        {showSettings && <SettingsModal geminiModel={geminiModel} extraTaxRate={extraTaxRate} countryCode={countryCode} isDarkMode={isDarkMode} toggleTheme={() => setIsDarkMode(!isDarkMode)} exportData={exportData} importData={importData} userTemplates={userTemplates} saveUserTemplates={saveUserTemplates} userMaterials={userMaterials} saveUserMaterials={saveUserMaterials} businessProfile={businessProfile} saveBusinessProfile={saveBusinessProfile} onSave={(m,t,cc) => { setGeminiModel(m); setExtraTaxRate(Number(t)); const c = cc||'AU'; localStorage.setItem('geminiModel',m); localStorage.setItem('joblog-extratax', t); localStorage.setItem('jim-country', c); _cc = c; setCountryCode(c); }} onClose={() => setShowSettings(false)} showToast={showToast} dbSize={dbSize} isPro={isUnlocked} onUnlockPro={handleUnlockSuccess}/>}
         {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} onUnlock={handleUnlockSuccess} showToast={showToast}/>}
-        {newJobModal && <NewJobModal type={newJobModal} apiKey={apiKey} geminiModel={geminiModel} onSave={handleCreateJob} onClose={() => setNewJobModal(null)} showToast={showToast} toggleVoice={toggleVoice} listeningField={listeningField} jobs={jobs}/>}
+        {newJobModal && <NewJobModal type={newJobModal} user={user} geminiModel={geminiModel} onSave={handleCreateJob} onClose={() => setNewJobModal(null)} showToast={showToast} toggleVoice={toggleVoice} listeningField={listeningField} jobs={jobs} onQuotaExceeded={() => setShowUpgrade(true)}/>}
 
-        {showAIAssistModal && activeJob && <AIAssistModal onClose={() => setShowAIAssistModal(false)} onGenerate={handleGenerateDocument} isGenerating={isGenerating} docType={isCompletionDoc(activeJob) ? 'Completion Invoice' : 'Quotation'} apiKey={apiKey} toggleVoice={toggleVoice} listeningField={listeningField}/>}
+        {showAIAssistModal && activeJob && <AIAssistModal onClose={() => setShowAIAssistModal(false)} onGenerate={handleGenerateDocument} isGenerating={isGenerating} docType={isCompletionDoc(activeJob) ? 'Completion Invoice' : 'Quotation'} toggleVoice={toggleVoice} listeningField={listeningField}/>}
         {rejectingJobId && <RejectSheet job={jobs.find(j => j.id === rejectingJobId)} onCancel={() => setRejectingJobId(null)} onConfirm={(reason, note) => { rejectJob(rejectingJobId, reason, note); setRejectingJobId(null); }}/>}
 
 
