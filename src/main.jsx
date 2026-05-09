@@ -15,7 +15,7 @@ const Root = () => {
 
   if (user === undefined) return null;
   if (!user) return <Login />;
-  return <App />;
+  return <App user={user} />;
 };
 
 createRoot(document.getElementById('root')).render(

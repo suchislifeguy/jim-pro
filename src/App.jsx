@@ -1,5 +1,6 @@
   import React, { useState, useEffect, useRef, Component, useMemo } from 'react';
   import ReloadPrompt from './components/ReloadPrompt';
+  import { syncWrite, coldStartSync, syncAll } from './sync';
   import { createPortal } from 'react-dom';
   import { get, set } from 'idb-keyval';
   import {
@@ -2139,7 +2140,15 @@
   /* ════════════════════════════════════════════
      APP
   ════════════════════════════════════════════ */
-  const App = () => {
+  const SYNC_COLLECTIONS = [
+    { key: 'jobs',         idbKey: 'jobsite-master-v5' },
+    { key: 'templates',    idbKey: 'joblog-templates' },
+    { key: 'materials',    idbKey: 'joblog-materials' },
+    { key: 'appointments', idbKey: 'joblog-appointments' },
+    { key: 'timesheets',   idbKey: 'joblog-timesheets' },
+  ];
+
+  const App = ({ user }) => {
     const [jobs, setJobs] = useState([]);
     const [userTemplates, setUserTemplates] = useState([]);
     const [userMaterials, setUserMaterials] = useState([]);
@@ -2257,14 +2266,25 @@
     const loadMaterials = async () => setUserMaterials(await get(DB_KEY_MATS) || []);
     const loadAppointments = async () => setAppointments(await get(DB_KEY_APPOINTMENTS) || []);
     const loadTimesheets = async () => setTimesheets(await get(DB_KEY_TIMESHEETS) || []);
-    useEffect(() => { loadJobs(); loadTemplates(); loadMaterials(); loadAppointments(); loadTimesheets(); }, []);
+    useEffect(() => {
+      const init = async () => {
+        if (user?.uid) await coldStartSync(user.uid, SYNC_COLLECTIONS);
+        loadJobs(); loadTemplates(); loadMaterials(); loadAppointments(); loadTimesheets();
+      };
+      init();
+      if (user?.uid) {
+        const onOnline = () => syncAll(user.uid, SYNC_COLLECTIONS);
+        window.addEventListener('online', onOnline);
+        return () => window.removeEventListener('online', onOnline);
+      }
+    }, []);
 
     const updMetric = (d) => setDbSize(`${(new TextEncoder().encode(JSON.stringify(d)).length/1024/1024).toFixed(2)} MB`);
-    const saveToDB = async (nj) => { setJobs(nj); try { await set(DB_KEY_JOBS, nj); } catch(e) { showToast('Warning: Data could not be saved (Storage limit).', 'error'); } updMetric(nj); };
-    const saveUserTemplates = async (arr) => { setUserTemplates(arr); await set(DB_KEY_TEMPL, arr); };
-    const saveUserMaterials = async (arr) => { setUserMaterials(arr); await set(DB_KEY_MATS, arr); };
-    const saveAppointments = async (arr) => { setAppointments(arr); await set(DB_KEY_APPOINTMENTS, arr); };
-    const saveTimesheets = async (arr) => { setTimesheets(arr); await set(DB_KEY_TIMESHEETS, arr); };
+    const saveToDB = async (nj) => { setJobs(nj); try { await set(DB_KEY_JOBS, nj); if (user?.uid) syncWrite(user.uid, 'jobs', nj); } catch(e) { showToast('Warning: Data could not be saved (Storage limit).', 'error'); } updMetric(nj); };
+    const saveUserTemplates = async (arr) => { setUserTemplates(arr); await set(DB_KEY_TEMPL, arr); if (user?.uid) syncWrite(user.uid, 'templates', arr); };
+    const saveUserMaterials = async (arr) => { setUserMaterials(arr); await set(DB_KEY_MATS, arr); if (user?.uid) syncWrite(user.uid, 'materials', arr); };
+    const saveAppointments = async (arr) => { setAppointments(arr); await set(DB_KEY_APPOINTMENTS, arr); if (user?.uid) syncWrite(user.uid, 'appointments', arr); };
+    const saveTimesheets = async (arr) => { setTimesheets(arr); await set(DB_KEY_TIMESHEETS, arr); if (user?.uid) syncWrite(user.uid, 'timesheets', arr); };
     const saveBusinessProfile = (profile) => { setBusinessProfile(profile); localStorage.setItem(BIZA_KEY, JSON.stringify(profile)); };
     useEffect(() => { const root = document.documentElement; if (isDarkMode) { root.classList.add('dark'); document.getElementById('theme-color-meta').setAttribute('content','#020617'); localStorage.setItem('theme','dark'); } else { root.classList.remove('dark'); document.getElementById('theme-color-meta').setAttribute('content','#ffffff'); localStorage.setItem('theme','light'); } }, [isDarkMode]);
 
