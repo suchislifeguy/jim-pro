@@ -10,14 +10,14 @@ const ALLOWED_ORIGINS = [
   'http://localhost:4173',
 ];
 
-const HEAVY_MODELS = ['gemini-2.5-flash-preview-05-20', 'gemini-2.0-flash', 'gemini-1.5-flash'];
-const LIGHT_MODELS = ['gemini-2.0-flash-lite', 'gemini-2.0-flash', 'gemini-1.5-flash-8b'];
+const HEAVY_MODELS = ['gemini-3.5-flash', 'gemini-3.0-flash', 'gemini-2.5-flash'];
+const LIGHT_MODELS = ['gemini-3.1-flash-lite', 'gemini-3.0-flash-lite', 'gemini-3.0-flash'];
 
 function corsHeaders(origin) {
   const allowed = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
   return {
     'Access-Control-Allow-Origin': allowed,
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-File-Size, X-User-Api-Key',
     'Access-Control-Max-Age': '3600',
   };
@@ -62,7 +62,7 @@ async function cascadeGenerate(models, body, apiKey) {
       );
       if (res.ok) return await res.json();
       const errText = await res.text();
-      if (res.status === 429 || res.status === 404 || res.status >= 500) {
+      if (res.status === 429 || res.status === 404 || res.status === 400 || res.status >= 500) {
         lastErr = new Error(`[${model}] ${res.status}`);
         continue;
       }
@@ -109,6 +109,41 @@ async function checkQuota(uid, env, isPro) {
 
   await env.QUOTA_KV.put(key, (count + 1).toString(), { expirationTtl: 86400 });
   return true;
+}
+
+async function handleStatus(request, env, origin) {
+  const authHeader = request.headers.get('Authorization') || '';
+  const idToken = authHeader.replace('Bearer ', '');
+  if (!idToken) return jsonResponse({ error: 'Missing token' }, 401, origin);
+
+  let uid;
+  try { uid = await verifyFirebaseToken(idToken); }
+  catch (err) { return jsonResponse({ error: err.message }, err.status || 401, origin); }
+
+  const testers = (env.TESTER_UIDS || '').split(',').map(s => s.trim()).filter(Boolean);
+  if (testers.includes(uid)) {
+    return jsonResponse({ tier: 'tester', quotaUsed: 0, quotaLimit: null }, 200, origin);
+  }
+
+  let isPro = false;
+  try {
+    const PROJECT_ID = 'jim-pro-app-6acf6';
+    const res = await fetch(
+      `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/users/${uid}`,
+      { headers: { 'Authorization': `Bearer ${env.FIREBASE_TOKEN || ''}` } }
+    );
+    if (res.ok) {
+      const data = await res.json();
+      isPro = data.fields?.isPro?.booleanValue === true;
+    }
+  } catch {}
+
+  const date = new Date().toISOString().split('T')[0];
+  const key = `quota:${uid}:${date}`;
+  const quotaUsed = parseInt(await env.QUOTA_KV.get(key) || '0', 10);
+  const quotaLimit = isPro ? 50 : 5;
+
+  return jsonResponse({ tier: isPro ? 'pro' : 'free', quotaUsed, quotaLimit }, 200, origin);
 }
 
 async function handleAiGenerate(request, env, origin) {
@@ -232,6 +267,10 @@ export default {
 
     if (url.pathname === '/stripeWebhook' && request.method === 'POST') {
       return handleStripeWebhook(request, env);
+    }
+
+    if (url.pathname === '/status' && request.method === 'GET') {
+      return handleStatus(request, env, origin);
     }
 
     if (request.method !== 'POST') {

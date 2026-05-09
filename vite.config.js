@@ -8,7 +8,7 @@ export default defineConfig({
     react(),
                             tailwindcss(),
                             VitePWA({
-                              registerType: 'prompt', // Forces user to click "Reload"
+                              registerType: 'autoUpdate',
                               includeAssets: ['favicon.svg'],
                               manifest: {
                                 name: 'JIM Pro',

@@ -772,8 +772,8 @@
     const sectionLabel = "text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2";
 
     return (
-      <div className="fixed inset-0 z-[160] bg-slate-900/90 backdrop-blur-md flex items-end sm:items-center justify-center sm:p-4">
-        <div className="bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl w-full max-w-md shadow-2xl border dark:border-slate-800 max-h-[92vh] flex flex-col animate-slide-up sm:animate-none pb-safe">
+      <div className="fixed inset-0 z-[160] bg-slate-900/90 backdrop-blur-md flex items-start sm:items-center justify-center sm:p-4">
+        <div className="bg-white dark:bg-slate-900 rounded-b-3xl sm:rounded-3xl w-full max-w-md shadow-2xl border dark:border-slate-800 max-h-[92vh] flex flex-col animate-slide-down sm:animate-none pt-safe">
 
           {/* Header */}
           <div className="flex justify-between items-center px-5 pt-5 pb-3 flex-shrink-0">
@@ -2190,6 +2190,7 @@
     const [timesheets, setTimesheets] = useState([]);
     const [businessProfile, setBusinessProfile] = useState(() => { try { return JSON.parse(localStorage.getItem(BIZA_KEY) || '{}'); } catch { return {}; } });
     const [isUnlocked, setIsUnlocked] = useState(false);
+    const [userTier, setUserTier] = useState(null);
     const [showUpgrade, setShowUpgrade] = useState(false);
     const [extraTaxRate, setExtraTaxRate] = useState(() => Number(localStorage.getItem('joblog-extratax') || 0));
     const [countryCode, setCountryCode] = useState(() => localStorage.getItem('jim-country') || 'AU');
@@ -2301,6 +2302,18 @@
       loadJobs(); loadTemplates(); loadMaterials(); loadAppointments(); loadTimesheets();
 
       if (user?.uid) {
+        user.getIdToken().then(idToken =>
+          fetch(`${AI_PROXY_BASE}/status`, { headers: { Authorization: `Bearer ${idToken}` } })
+            .then(r => r.ok ? r.json() : null)
+            .then(data => {
+              if (data?.tier) {
+                setUserTier(data.tier);
+                if (data.tier !== 'free') setIsUnlocked(true);
+              }
+            })
+            .catch(() => {})
+        );
+
         // Background sync — refresh state for any collections Firestore had newer data for
         coldStartSync(user.uid, SYNC_COLLECTIONS).then(updated => {
           if (updated.jobs)         loadJobs();
@@ -3225,9 +3238,13 @@ Return ONLY a valid JSON object. Format: {"cost": 123.45, "items": "Hammer\\nNai
               : jimBusy ? <div className="h-9 w-9 flex-shrink-0"/> : <DraggableJim size={36} onTap={startJimLive}/>}
             <div className="min-w-0">
               <h1 className="font-extrabold text-lg tracking-tight truncate leading-none">{viewMode === 'detail' ? 'Job Details' : (businessProfile?.name || 'JIM')}</h1>
-              {!businessProfile?.name && viewMode !== 'detail' && (
+              {viewMode !== 'detail' && userTier && userTier !== 'free' ? (
+                <p className="text-[9px] font-black uppercase tracking-wider mt-0.5 leading-none">
+                  <span className={`px-1.5 py-0.5 rounded-full ${userTier === 'tester' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400' : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-400'}`}>{userTier}</span>
+                </p>
+              ) : (!businessProfile?.name && viewMode !== 'detail' && (
                 <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-1 leading-none truncate">Jobs Invoices Manager</p>
-              )}
+              ))}
             </div>
           </div>
           <div className="flex items-center gap-1.5 flex-shrink-0">

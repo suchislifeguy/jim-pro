@@ -2,11 +2,20 @@ import { useRegisterSW } from 'virtual:pwa-register/react';
 
 export default function ReloadPrompt() {
   const {
-    needRefresh: [needRefresh, setNeedRefresh],
-    updateServiceWorker,
-  } = useRegisterSW();
+    offlineReady: [offlineReady, setOfflineReady],
+  } = useRegisterSW({
+    onRegistered(r) {
+      console.log('SW Registered: ', r);
+      if (r) {
+        setInterval(() => r.update(), 5 * 60 * 1000);
+      }
+    },
+    onRegisterError(error) {
+      console.error('SW registration error', error);
+    },
+  });
 
-  if (!needRefresh) return null;
+  if (!offlineReady) return null;
 
   return (
     <div style={{
@@ -24,24 +33,9 @@ export default function ReloadPrompt() {
       zIndex: 9999,
       boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
     }}>
-      <span style={{ fontSize: '0.9rem' }}>New version available</span>
+      <span style={{ fontSize: '0.9rem' }}>App ready to work offline</span>
       <button
-        onClick={() => updateServiceWorker(true)}
-        style={{
-          background: '#7c3aed',
-          color: '#fff',
-          border: 'none',
-          borderRadius: '0.5rem',
-          padding: '0.35rem 0.85rem',
-          cursor: 'pointer',
-          fontWeight: 600,
-          fontSize: '0.85rem',
-        }}
-      >
-        Reload
-      </button>
-      <button
-        onClick={() => setNeedRefresh(false)}
+        onClick={() => setOfflineReady(false)}
         style={{
           background: 'transparent',
           color: '#aaa',
