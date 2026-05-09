@@ -14,9 +14,11 @@ export async function syncWrite(uid, key, data) {
   setDoc(ref(uid, key), { payload: data, lastUpdated: serverTimestamp() }).catch(() => {});
 }
 
-// Called on login — pull Firestore if it's newer than local
+// Called after local load — pulls Firestore in background, returns map of updated keys
+// so the caller can refresh only what changed.
 export async function coldStartSync(uid, collections) {
   const localTs = (await get(TS_KEY)) || {};
+  const updated = {}; // key -> new payload
 
   for (const { key, idbKey } of collections) {
     try {
@@ -30,13 +32,15 @@ export async function coldStartSync(uid, collections) {
       if (remoteMs > localMs) {
         await set(idbKey, remote.payload);
         localTs[key] = remoteMs;
+        updated[key] = remote.payload;
       }
     } catch {
-      // offline or error — local data stands
+      // offline or rules not set — local data stands
     }
   }
 
   await set(TS_KEY, localTs);
+  return updated;
 }
 
 // Called when coming back online — push all local data up

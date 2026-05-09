@@ -2267,12 +2267,19 @@
     const loadAppointments = async () => setAppointments(await get(DB_KEY_APPOINTMENTS) || []);
     const loadTimesheets = async () => setTimesheets(await get(DB_KEY_TIMESHEETS) || []);
     useEffect(() => {
-      const init = async () => {
-        if (user?.uid) await coldStartSync(user.uid, SYNC_COLLECTIONS);
-        loadJobs(); loadTemplates(); loadMaterials(); loadAppointments(); loadTimesheets();
-      };
-      init();
+      // Load local data immediately so the app never hangs
+      loadJobs(); loadTemplates(); loadMaterials(); loadAppointments(); loadTimesheets();
+
       if (user?.uid) {
+        // Background sync — refresh state for any collections Firestore had newer data for
+        coldStartSync(user.uid, SYNC_COLLECTIONS).then(updated => {
+          if (updated.jobs)         loadJobs();
+          if (updated.templates)    loadTemplates();
+          if (updated.materials)    loadMaterials();
+          if (updated.appointments) loadAppointments();
+          if (updated.timesheets)   loadTimesheets();
+        }).catch(() => {});
+
         const onOnline = () => syncAll(user.uid, SYNC_COLLECTIONS);
         window.addEventListener('online', onOnline);
         return () => window.removeEventListener('online', onOnline);
