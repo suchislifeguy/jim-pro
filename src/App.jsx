@@ -745,6 +745,7 @@
   };
 
   const SettingsModal = ({ geminiModel, userApiKey, extraTaxRate, countryCode, onSave, onClose, isDarkMode, toggleTheme, exportData, importData, userTemplates, saveUserTemplates, userMaterials, saveUserMaterials, businessProfile, saveBusinessProfile, showToast, dbSize, isPro, onUnlockPro }) => {
+    const cc = getCC();
     const [draftModel, setDraftModel] = useState(geminiModel);
     const [draftApiKey, setDraftApiKey] = useState(userApiKey);
     const [draftExtraTax, setDraftExtraTax] = useState(extraTaxRate);
@@ -2587,7 +2588,7 @@ SCHEDULE:
 - You can print a weekly timesheet as a PDF from the schedule view.
 
 SETTINGS (gear icon on the dashboard):
-- Business Profile: your business name, {cc.regLabel}/registration number, address, phone, email, and logo. This appears on every PDF you generate.
+- Business Profile: your business name, ${cc.regLabel}/registration number, address, phone, email, and logo. This appears on every PDF you generate.
 - Credentials: store your trade licences, insurance details, and expiry dates. JIM will warn you when they're about to expire.
 - Country: sets your currency, tax label (${cc.taxLabel}), and trade conventions. Currently set to ${cc.name}.
 - Extra tax rate: add a second tax line (e.g. state levy) on top of ${cc.taxLabel} if needed.
