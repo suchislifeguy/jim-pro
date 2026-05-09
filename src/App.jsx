@@ -163,14 +163,6 @@
   const DB_KEY_APPOINTMENTS = 'joblog-appointments';
   const DB_KEY_TIMESHEETS   = 'joblog-timesheets';
 
-  const LICENCE_KEYS = [
-    { key: "JIM-DEMO-1234", expiry: null },
-    { key: "JIM-PRO-001",   expiry: "2027-01-01" },
-    { key: "JIM-PRO-002",   expiry: null },
-    { key: "JIM-PRO-003",   expiry: "2027-01-01" },
-    { key: "JIM-PRO-004",   expiry: null },
-  ];
-
   const migrateProfile = (p) => {
     if (!p || p.credentials !== undefined) return p;
     const creds = [];
@@ -766,11 +758,7 @@
     const hasBiz = !!businessProfile?.name;
 
     const handleLicenceUnlock = () => {
-      const input = licenceInput.trim().toUpperCase();
-      const found = LICENCE_KEYS.find(k => k.key === input);
-      if (!found) return showToast('Invalid licence key', 'error');
-      if (found.expiry && new Date(found.expiry) < new Date()) return showToast('Key expired', 'error');
-      onUnlockPro(found); setLicenceInput(''); showToast('Full version unlocked!', 'success');
+      showToast('Subscription is now managed via account settings', 'info');
     };
 
     const expiringCount = (businessProfile?.credentials || []).filter(c => isExpiringSoon(c.expiry) || isExpired(c.expiry)).length;
@@ -938,7 +926,7 @@
                   ) : (
                     <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-3">
                       <p className="text-xs text-slate-600 dark:text-slate-400 font-medium leading-relaxed">Purchase a 1-year licence or enter your existing key.</p>
-                      <PayPalButton />
+                      <div />
                       <div className="flex items-center gap-2"><div className="flex-1 h-px bg-slate-200 dark:bg-slate-700"/><span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">or</span><div className="flex-1 h-px bg-slate-200 dark:bg-slate-700"/></div>
                       <input type="text" className="w-full h-11 px-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl font-mono text-sm dark:text-white uppercase outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400/40 transition-all" placeholder="Licence key" value={licenceInput} onChange={e => setLicenceInput(e.target.value)}/>
                       <button onClick={handleLicenceUnlock} className="w-full bg-orange-500 hover:bg-orange-400 text-white h-11 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors"><Lock size={15}/> Unlock</button>
@@ -2201,11 +2189,7 @@
     const [appointments, setAppointments] = useState([]);
     const [timesheets, setTimesheets] = useState([]);
     const [businessProfile, setBusinessProfile] = useState(() => { try { return JSON.parse(localStorage.getItem(BIZA_KEY) || '{}'); } catch { return {}; } });
-    const [isUnlocked, setIsUnlocked] = useState(() => {
-      const stored = localStorage.getItem('joblog-licence');
-      if (stored) { try { const data = JSON.parse(stored); if (data.expiry && new Date(data.expiry) < new Date()) { localStorage.removeItem('joblog-unlocked'); localStorage.removeItem('joblog-licence'); return false; } return true; } catch {} }
-      return localStorage.getItem('joblog-unlocked') === 'true';
-    });
+    const [isUnlocked, setIsUnlocked] = useState(false);
     const [showUpgrade, setShowUpgrade] = useState(false);
     const [extraTaxRate, setExtraTaxRate] = useState(() => Number(localStorage.getItem('joblog-extratax') || 0));
     const [countryCode, setCountryCode] = useState(() => localStorage.getItem('jim-country') || 'AU');
@@ -2841,8 +2825,8 @@ ${won.map(fmt).join('\n')}`;
           });
         };
 
-    const handleNewJobClick = (type) => { if (!isUnlocked && jobs.length >= 3) { setShowUpgrade(true); } else { setNewJobModal(type); } };
-    const handleUnlockSuccess = (keyData) => { setIsUnlocked(true); localStorage.setItem('joblog-unlocked', 'true'); if (keyData) localStorage.setItem('joblog-licence', JSON.stringify(keyData)); };
+    const handleNewJobClick = (type) => { setNewJobModal(type); };
+    const handleUnlockSuccess = () => { setIsUnlocked(true); };
 
     const handleGenerateDocument = async (customPrompt) => {
       setIsGenerating(true);
