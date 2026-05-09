@@ -18,7 +18,7 @@ function corsHeaders(origin) {
   return {
     'Access-Control-Allow-Origin': allowed,
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-File-Size',
+    'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-File-Size, X-User-Api-Key',
     'Access-Control-Max-Age': '3600',
   };
 }
@@ -91,18 +91,19 @@ async function handleAiGenerate(request, env, origin) {
   try { body = await request.json(); }
   catch { return jsonResponse({ error: 'Invalid JSON' }, 400, origin); }
 
-  const { taskType, contents, generationConfig, userModelHint } = body;
+  const { taskType, contents, generationConfig, userModelHint, userApiKey } = body;
   if (!contents || !Array.isArray(contents)) {
     return jsonResponse({ error: 'Missing contents array' }, 400, origin);
   }
 
   const models = buildModelList(taskType || 'light', userModelHint || null);
+  const apiKey = (userApiKey && userApiKey.length > 10) ? userApiKey : env.GEMINI_API_KEY;
 
   try {
     const data = await cascadeGenerate(
       models,
       { contents, generationConfig: generationConfig || {} },
-      env.GEMINI_API_KEY
+      apiKey
     );
     return jsonResponse(data, 200, origin);
   } catch (err) {
@@ -123,10 +124,12 @@ async function handleAiUploadFile(request, env, origin) {
 
   const contentType = request.headers.get('Content-Type') || 'application/octet-stream';
   const fileSize = request.headers.get('X-File-Size') || '0';
+  const userApiKey = request.headers.get('X-User-Api-Key') || null;
+  const apiKey = (userApiKey && userApiKey.length > 10) ? userApiKey : env.GEMINI_API_KEY;
   const body = await request.arrayBuffer();
 
   try {
-    const uploadRes = await fetch(`${GEMINI_BASE}/upload/v1beta/files?key=${env.GEMINI_API_KEY}`, {
+    const uploadRes = await fetch(`${GEMINI_BASE}/upload/v1beta/files?key=${apiKey}`, {
       method: 'POST',
       headers: {
         'X-Goog-Upload-Protocol': 'raw',

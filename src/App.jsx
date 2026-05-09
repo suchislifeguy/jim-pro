@@ -234,12 +234,12 @@
   const AI_PROXY_BASE = import.meta.env.VITE_AI_PROXY_URL ||
     'https://us-central1-jim-pro-app-6acf6.cloudfunctions.net';
 
-  const smartFetchAI = async (taskType, contents, generationConfig, user, userModelHint) => {
+  const smartFetchAI = async (taskType, contents, generationConfig, user, userModelHint, userApiKey) => {
     const idToken = await user.getIdToken();
     const res = await fetch(`${AI_PROXY_BASE}/aiGenerate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
-      body: JSON.stringify({ taskType, contents, generationConfig, userModelHint }),
+      body: JSON.stringify({ taskType, contents, generationConfig, userModelHint, userApiKey: userApiKey || undefined }),
     });
     if (res.ok) return await res.json();
     let errBody = {};
@@ -250,11 +250,13 @@
     throw new Error(errBody.error || `AI request failed (${res.status})`);
   };
 
-  const aiUploadFileProxy = async (file, user) => {
+  const aiUploadFileProxy = async (file, user, userApiKey) => {
     const idToken = await user.getIdToken();
+    const headers = { 'Content-Type': file.type, 'Authorization': `Bearer ${idToken}`, 'X-File-Size': String(file.size) };
+    if (userApiKey) headers['X-User-Api-Key'] = userApiKey;
     const res = await fetch(`${AI_PROXY_BASE}/aiUploadFile`, {
       method: 'POST',
-      headers: { 'Content-Type': file.type, 'Authorization': `Bearer ${idToken}`, 'X-File-Size': String(file.size) },
+      headers,
       body: file,
     });
     if (!res.ok) {
@@ -782,16 +784,18 @@
     );
   };
 
-  const SettingsModal = ({ geminiModel, extraTaxRate, countryCode, onSave, onClose, isDarkMode, toggleTheme, exportData, importData, userTemplates, saveUserTemplates, userMaterials, saveUserMaterials, businessProfile, saveBusinessProfile, showToast, dbSize, isPro, onUnlockPro }) => {
+  const SettingsModal = ({ geminiModel, userApiKey, extraTaxRate, countryCode, onSave, onClose, isDarkMode, toggleTheme, exportData, importData, userTemplates, saveUserTemplates, userMaterials, saveUserMaterials, businessProfile, saveBusinessProfile, showToast, dbSize, isPro, onUnlockPro }) => {
     const [draftModel, setDraftModel] = useState(geminiModel);
+    const [draftApiKey, setDraftApiKey] = useState(userApiKey);
     const [draftExtraTax, setDraftExtraTax] = useState(extraTaxRate);
     const [draftCountry, setDraftCountry] = useState(countryCode || 'AU');
     const [showTemplates, setShowTemplates] = useState(false);
     const [showMaterials, setShowMaterials] = useState(false);
     const [showBusiness, setShowBusiness] = useState(false);
+    const [showAdvancedAI, setShowAdvancedAI] = useState(false);
     const [licenceInput, setLicenceInput] = useState('');
     const [activeTab, setActiveTab] = useState('business');
-    const save = () => { onSave(draftModel, draftExtraTax, draftCountry); onClose(); showToast('Settings Saved', 'success'); };
+    const save = () => { onSave(draftModel, draftApiKey, draftExtraTax, draftCountry); onClose(); showToast('Settings Saved', 'success'); };
     const hasBiz = !!businessProfile?.name;
 
     const handleLicenceUnlock = () => {
@@ -933,15 +937,30 @@
                   </button>
                 </div>
 
-                {/* AI Model Preference */}
+                {/* Advanced AI */}
                 <div>
-                  <label className={sectionLabel}>AI Model Preference</label>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mb-3 leading-relaxed">JIM's AI is built in — no API key needed. Optionally hint a preferred Gemini model; JIM will fall back automatically if it's unavailable.</p>
-                  <div className="relative">
-                    <Bot size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input type="text" className="w-full pl-10 pr-3.5 h-11 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-mono text-sm text-slate-700 dark:text-slate-200 focus:border-orange-400 focus:ring-1 focus:ring-orange-400/40 transition-all" placeholder="Model hint (optional)" value={draftModel} onChange={e => setDraftModel(e.target.value)}/>
-                  </div>
-                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-2">JIM routes to the fastest available Gemini model automatically.</p>
+                  <button onClick={() => setShowAdvancedAI(p => !p)} className="w-full flex items-center justify-between py-1">
+                    <span className={sectionLabel} style={{marginBottom:0}}>Advanced AI</span>
+                    <ChevronDown size={14} className={`text-slate-400 transition-transform flex-shrink-0 ${showAdvancedAI ? 'rotate-180' : ''}`}/>
+                  </button>
+                  {showAdvancedAI && (
+                    <div className="mt-3 space-y-3">
+                      <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                        JIM uses a built-in AI key with automatic model fallback. Optionally add your own free Gemini key from <span className="font-semibold">aistudio.google.com</span> to use your personal quota instead.
+                      </p>
+                      <div className="relative">
+                        <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"/>
+                        <input type="password" className="w-full pl-10 pr-3.5 h-11 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-mono text-sm dark:text-white dark:placeholder-slate-500 focus:border-orange-400 focus:ring-1 focus:ring-orange-400/40 transition-all" placeholder="Your Gemini API key (optional)" value={draftApiKey} onChange={e => setDraftApiKey(e.target.value)}/>
+                      </div>
+                      {draftApiKey && (
+                        <div className="relative">
+                          <Bot size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"/>
+                          <input type="text" className="w-full pl-10 pr-3.5 h-11 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-mono text-sm text-slate-700 dark:text-slate-200 focus:border-orange-400 focus:ring-1 focus:ring-orange-400/40 transition-all" placeholder="Model hint e.g. gemini-2.5-pro (optional)" value={draftModel} onChange={e => setDraftModel(e.target.value)}/>
+                        </div>
+                      )}
+                      {draftApiKey && <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold">Using your personal Gemini key</p>}
+                    </div>
+                  )}
                 </div>
 
                 {/* Pro Licence */}
@@ -1007,7 +1026,7 @@
     );
   };
 
-  const NewJobModal = ({ type, onSave, onClose, user, geminiModel, showToast, toggleVoice, listeningField, jobs, onQuotaExceeded }) => {
+  const NewJobModal = ({ type, onSave, onClose, user, geminiModel, userApiKey, showToast, toggleVoice, listeningField, jobs }) => {
     const [addr, setAddr] = useState('');
     const [client, setClient] = useState('');
     const [phone, setPhone] = useState('');
@@ -1052,7 +1071,7 @@
           if (file.type === 'application/pdf') {
             let useFallback = false;
             try {
-              const uploadData = await aiUploadFileProxy(file, user);
+              const uploadData = await aiUploadFileProxy(file, user, userApiKey);
               if (!uploadData.file || !uploadData.file.uri) {
                 useFallback = true;
               } else {
@@ -1087,7 +1106,8 @@
           [{ parts: [{ text: textPrompt }, ...fileParts] }],
           { temperature: 0, response_mime_type: 'application/json' },
           user,
-          geminiModel
+          geminiModel,
+          userApiKey
         );
 
         const raw = resData?.candidates?.[0]?.content?.parts?.[0]?.text || '';
@@ -2154,6 +2174,7 @@
     const [listeningField, setListeningField] = useState(null);
     const recognitionRef = useRef(null);
     const [geminiModel, setGeminiModel] = useState(() => localStorage.getItem('geminiModel') || 'gemini-2.0-flash-lite');
+    const [userApiKey, setUserApiKey] = useState(() => localStorage.getItem('userGeminiApiKey') || '');
     const [confirmDialog, setConfirmDialog] = useState(null);
     const [printPreviewJob, setPrintPreviewJob] = useState(null);
     const [selectedJobs, setSelectedJobs] = useState([]);
@@ -2561,7 +2582,7 @@ ${lost.map(fmt).join('\n')}
 WON (${won.length}):
 ${won.map(fmt).join('\n')}`;
       try {
-        const resData = await smartFetchAI('heavy', [{ parts: [{ text: prompt }] }], { temperature: 0.4 }, user, geminiModel);
+        const resData = await smartFetchAI('heavy', [{ parts: [{ text: prompt }] }], { temperature: 0.4 }, user, geminiModel, userApiKey);
         const text = resData?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
         if (text) setLostAnalysis(text);
         else showToast('No analysis returned — try again.', 'error');
@@ -2652,7 +2673,8 @@ ${won.map(fmt).join('\n')}`;
             [{ parts: [{ text: `${buildJimContext()}\n\nUser said: "${userText}"\n\nReply as JIM. No greeting. Get straight to the point. 1-2 sentences max, use actual job data.` }] }],
             { temperature: 0.7, maxOutputTokens: 150 },
             user,
-            geminiModel
+            geminiModel,
+            userApiKey
           );
           if (!active()) { isProcessing = false; return; }
 
@@ -2801,7 +2823,8 @@ Return ONLY a valid JSON object with: "summary", "tasks" (array of {title, desc}
           [{ parts: [{ text: prompt }] }],
           { temperature: 0.3, response_mime_type: 'application/json' },
           user,
-          geminiModel
+          geminiModel,
+          userApiKey
         );
         const raw = resData?.candidates?.[0]?.content?.parts?.[0]?.text || '';
         const result = JSON.parse(raw.replace(/```json\n?|```/g, '').trim());
@@ -2856,7 +2879,8 @@ Return ONLY a valid JSON object with keys: "title", "time" (e.g. "2h 30m"), "rat
           [{ parts: [{ text: prompt }] }],
           { temperature: 0.3, response_mime_type: 'application/json' },
           user,
-          geminiModel
+          geminiModel,
+          userApiKey
         );
         const raw = resData?.candidates?.[0]?.content?.parts?.[0]?.text || '';
         const json = JSON.parse(raw.replace(/```json\n?|```/g, '').trim());
@@ -2882,7 +2906,8 @@ Return ONLY a valid JSON object with keys: "title", "time" (e.g. "2h 30m"), "rat
           [{ parts: [{ text: prompt }] }],
           { temperature: 0.2 },
           user,
-          geminiModel
+          geminiModel,
+          userApiKey
         );
         const text = resData.candidates[0].content.parts[0].text.trim();
         setTaskData(p => ({...p, desc: text}));
@@ -2912,7 +2937,8 @@ Return ONLY a valid JSON object. Format: {"cost": 123.45, "items": "Hammer\\nNai
           [{ parts: [{ text: textPrompt }, { inlineData: { mimeType: 'image/webp', data: base64Data.split(',')[1] } }] }],
           { temperature: 0, response_mime_type: 'application/json' },
           user,
-          geminiModel
+          geminiModel,
+          userApiKey
         );
 
         const raw = resData?.candidates?.[0]?.content?.parts?.[0]?.text || '';
@@ -3716,9 +3742,9 @@ Return ONLY a valid JSON object. Format: {"cost": 123.45, "items": "Hammer\\nNai
         {jimLiveOpen && <JimLivePanel status={jimLiveStatus} transcript={jimLiveTranscript} onClose={stopJimLive} onMicTap={handleMicTap}/>}
 
         {/* Modals */}
-        {showSettings && <SettingsModal geminiModel={geminiModel} extraTaxRate={extraTaxRate} countryCode={countryCode} isDarkMode={isDarkMode} toggleTheme={() => setIsDarkMode(!isDarkMode)} exportData={exportData} importData={importData} userTemplates={userTemplates} saveUserTemplates={saveUserTemplates} userMaterials={userMaterials} saveUserMaterials={saveUserMaterials} businessProfile={businessProfile} saveBusinessProfile={saveBusinessProfile} onSave={(m,t,cc) => { setGeminiModel(m); setExtraTaxRate(Number(t)); const c = cc||'AU'; localStorage.setItem('geminiModel',m); localStorage.setItem('joblog-extratax', t); localStorage.setItem('jim-country', c); _cc = c; setCountryCode(c); }} onClose={() => setShowSettings(false)} showToast={showToast} dbSize={dbSize} isPro={isUnlocked} onUnlockPro={handleUnlockSuccess}/>}
+        {showSettings && <SettingsModal geminiModel={geminiModel} userApiKey={userApiKey} extraTaxRate={extraTaxRate} countryCode={countryCode} isDarkMode={isDarkMode} toggleTheme={() => setIsDarkMode(!isDarkMode)} exportData={exportData} importData={importData} userTemplates={userTemplates} saveUserTemplates={saveUserTemplates} userMaterials={userMaterials} saveUserMaterials={saveUserMaterials} businessProfile={businessProfile} saveBusinessProfile={saveBusinessProfile} onSave={(m,k,t,cc) => { setGeminiModel(m); setUserApiKey(k); setExtraTaxRate(Number(t)); const c = cc||'AU'; localStorage.setItem('geminiModel',m); localStorage.setItem('userGeminiApiKey',k); localStorage.setItem('joblog-extratax', t); localStorage.setItem('jim-country', c); _cc = c; setCountryCode(c); }} onClose={() => setShowSettings(false)} showToast={showToast} dbSize={dbSize} isPro={isUnlocked} onUnlockPro={handleUnlockSuccess}/>}
         {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} onUnlock={handleUnlockSuccess} showToast={showToast}/>}
-        {newJobModal && <NewJobModal type={newJobModal} user={user} geminiModel={geminiModel} onSave={handleCreateJob} onClose={() => setNewJobModal(null)} showToast={showToast} toggleVoice={toggleVoice} listeningField={listeningField} jobs={jobs}/>}
+        {newJobModal && <NewJobModal type={newJobModal} user={user} geminiModel={geminiModel} userApiKey={userApiKey} onSave={handleCreateJob} onClose={() => setNewJobModal(null)} showToast={showToast} toggleVoice={toggleVoice} listeningField={listeningField} jobs={jobs}/>}
 
         {showAIAssistModal && activeJob && <AIAssistModal onClose={() => setShowAIAssistModal(false)} onGenerate={handleGenerateDocument} isGenerating={isGenerating} docType={isCompletionDoc(activeJob) ? 'Completion Invoice' : 'Quotation'} toggleVoice={toggleVoice} listeningField={listeningField}/>}
         {rejectingJobId && <RejectSheet job={jobs.find(j => j.id === rejectingJobId)} onCancel={() => setRejectingJobId(null)} onConfirm={(reason, note) => { rejectJob(rejectingJobId, reason, note); setRejectingJobId(null); }}/>}
