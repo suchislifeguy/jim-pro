@@ -410,24 +410,6 @@
     }
   }
 
-  const PayPalButton = () => {
-    const containerId = useRef(`paypal-${Math.random().toString(36).substr(2, 9)}`);
-    useEffect(() => {
-      if (window.paypal) {
-        const el = document.getElementById(containerId.current);
-        if (el && el.children.length === 0) {
-          try { window.paypal.HostedButtons({ hostedButtonId: "KQQ6Q5YFX758G" }).render(`#${containerId.current}`); }
-          catch (err) { console.error("PayPal render error", err); }
-        }
-      }
-    }, []);
-    return (
-      <div className="flex justify-center overflow-x-auto" style={{ isolation: 'isolate' }}>
-        <div id={containerId.current} className="paypal-isolate" style={{ minWidth: '220px', width: 'auto', display: 'inline-block' }}/>
-      </div>
-    );
-  };
-
   const ToastMessage = ({ message, type, onClose }) => {
     useEffect(() => { const timer = setTimeout(onClose, type === 'error' ? 10000 : type === 'success' ? 3000 : 4000); return () => clearTimeout(timer); }, [onClose, type]);
     const styles = {
@@ -490,32 +472,17 @@
   );
 
   const UpgradeModal = ({ onClose, onUnlock, showToast }) => {
-    const [key, setKey] = useState('');
-    const handleUnlock = () => {
-      const input = key.trim().toUpperCase();
-      const found = LICENCE_KEYS.find(k => k.key === input);
-      if (!found) { showToast('Invalid licence key', 'error'); return; }
-      if (found.expiry && new Date(found.expiry) < new Date()) { showToast('This key has expired', 'error'); return; }
-      onUnlock(found); showToast('Full version unlocked!', 'success'); onClose();
-    };
     return (
       <div className="fixed inset-0 z-[300] bg-slate-900/90 backdrop-blur-md flex items-end sm:items-center justify-center sm:p-4 overflow-y-auto">
         <div className="bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl w-full max-w-md p-6 sm:p-8 shadow-2xl border dark:border-slate-800 animate-slide-up sm:animate-none pb-safe text-center my-auto">
           <div className="flex justify-end mb-2"><button onClick={onClose} aria-label="Close" className="w-9 h-9 flex items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-full text-slate-500 hover:text-slate-700 dark:hover:text-white transition-colors"><X size={18}/></button></div>
           <div className="w-16 h-16 bg-orange-100 dark:bg-orange-900/40 rounded-full flex items-center justify-center mx-auto mb-4"><Lock size={32} className="text-orange-500"/></div>
           <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-2">Limit Reached</h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">You've reached the 3-job free limit. Purchase a licence or enter an existing key to unlock unlimited features.</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">You've reached the 3-job free limit. Upgrade to Pro for unlimited features.</p>
           <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl mb-6 border border-slate-200 dark:border-slate-700 text-left">
-            <h3 className="font-black text-sm mb-1 text-slate-800 dark:text-white">1. Buy a Licence</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 font-medium">Purchase a 1-year Pro Licence. Your unique unlock key will be emailed to you after checkout.</p>
-            <PayPalButton />
-          </div>
-          <div className="text-left mb-6">
-            <h3 className="font-black text-sm mb-2 text-slate-800 dark:text-white">2. Enter your Key</h3>
-            <div className="flex gap-2">
-              <input className="flex-1 p-3 bg-slate-50 dark:bg-slate-800 rounded-xl outline-none font-mono font-bold dark:text-white dark:placeholder-slate-500 focus:border-orange-400 focus:ring-1 focus:ring-orange-400/40 uppercase text-sm border border-slate-200 dark:border-slate-700" placeholder="ENTER LICENCE KEY" value={key} onChange={e => setKey(e.target.value.toUpperCase())}/>
-              <button onClick={handleUnlock} className="bg-orange-500 hover:bg-orange-400 text-white px-5 rounded-xl font-black text-sm">Unlock</button>
-            </div>
+            <h3 className="font-black text-sm mb-1 text-slate-800 dark:text-white">Upgrade to JIM Pro</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 font-medium">Unlock unlimited projects and AI-powered tools.</p>
+            <button className="w-full py-3 rounded-xl bg-orange-500 hover:bg-orange-400 text-white font-black text-sm transition-colors">Upgrade Now</button>
           </div>
         </div>
       </div>
