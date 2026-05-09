@@ -185,12 +185,12 @@
   const MAX_STOPS = 12;
 
   const COUNTRY_CONFIGS = {
-    AU: { name: 'Australia',      flag: '🇦🇺', currency: 'AUD', symbol: '$',  taxLabel: 'GST',       taxRate: 10, locale: 'en-AU', markupLabel: 'Additional Markup' },
-    NZ: { name: 'New Zealand',    flag: '🇳🇿', currency: 'NZD', symbol: '$',  taxLabel: 'GST',       taxRate: 15, locale: 'en-NZ', markupLabel: 'Additional Markup' },
-    US: { name: 'United States',  flag: '🇺🇸', currency: 'USD', symbol: '$',  taxLabel: 'Sales Tax', taxRate: 0,  locale: 'en-US', markupLabel: 'State / Local Tax' },
-    CA: { name: 'Canada',         flag: '🇨🇦', currency: 'CAD', symbol: '$',  taxLabel: 'GST/HST',   taxRate: 5,  locale: 'en-CA', markupLabel: 'Provincial / Other Tax' },
-    GB: { name: 'United Kingdom', flag: '🇬🇧', currency: 'GBP', symbol: '£',  taxLabel: 'VAT',       taxRate: 20, locale: 'en-GB', markupLabel: 'Additional Markup' },
-    IE: { name: 'Ireland',        flag: '🇮🇪', currency: 'EUR', symbol: '€',  taxLabel: 'VAT',       taxRate: 23, locale: 'en-IE', markupLabel: 'Additional Markup' },
+    AU: { name: 'Australia',      flag: '🇦🇺', currency: 'AUD', symbol: '$',  taxLabel: 'GST',       taxRate: 10, locale: 'en-AU', markupLabel: 'Additional Markup', regLabel: 'ABN', invoiceLabel: 'Tax Invoice' },
+    NZ: { name: 'New Zealand',    flag: '🇳🇿', currency: 'NZD', symbol: '$',  taxLabel: 'GST',       taxRate: 15, locale: 'en-NZ', markupLabel: 'Additional Markup', regLabel: 'GST #', invoiceLabel: 'Tax Invoice' },
+    US: { name: 'United States',  flag: '🇺🇸', currency: 'USD', symbol: '$',  taxLabel: 'Sales Tax', taxRate: 0,  locale: 'en-US', markupLabel: 'State / Local Tax', regLabel: 'Tax ID', invoiceLabel: 'Invoice' },
+    CA: { name: 'Canada',         flag: '🇨🇦', currency: 'CAD', symbol: '$',  taxLabel: 'GST/HST',   taxRate: 5,  locale: 'en-CA', markupLabel: 'Provincial / Other Tax', regLabel: 'Business #', invoiceLabel: 'Invoice' },
+    GB: { name: 'United Kingdom', flag: '🇬🇧', currency: 'GBP', symbol: '£',  taxLabel: 'VAT',       taxRate: 20, locale: 'en-GB', markupLabel: 'Additional Markup', regLabel: 'VAT Reg #', invoiceLabel: 'Tax Invoice' },
+    IE: { name: 'Ireland',        flag: '🇮🇪', currency: 'EUR', symbol: '€',  taxLabel: 'VAT',       taxRate: 23, locale: 'en-IE', markupLabel: 'Additional Markup', regLabel: 'VAT #', invoiceLabel: 'Tax Invoice' },
   };
   let _cc = localStorage.getItem('jim-country') || 'AU';
   const getCC = () => COUNTRY_CONFIGS[_cc] || COUNTRY_CONFIGS.AU;
@@ -523,7 +523,7 @@
     );
   };
 
-  const CredentialsEditor = ({ credentials, onChange }) => {
+  const CredentialsEditor = ({ credentials, onChange, regLabel }) => {
     const add = () => onChange([...credentials, { label: '', value: '', expiry: '' }]);
     const remove = (i) => onChange(credentials.filter((_, idx) => idx !== i));
     const upd = (i, f, v) => onChange(credentials.map((c, idx) => idx === i ? { ...c, [f]: v } : c));
@@ -535,7 +535,7 @@
           return (
             <div key={i} className={`p-3 rounded-xl border space-y-2 ${exp ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800' : soon ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700'}`}>
               <div className="flex items-center gap-2">
-                <input className="flex-1 p-2 bg-slate-50 dark:bg-slate-700 rounded-lg outline-none text-[11px] font-black uppercase tracking-wide dark:text-white border border-slate-200 dark:border-slate-600 focus:ring-1 focus:ring-orange-400 placeholder-slate-400" placeholder="Label  (e.g. ABN, Licence No., Insurance)" value={c.label} onChange={e => upd(i,'label',e.target.value)}/>
+                <input className="flex-1 p-2 bg-slate-50 dark:bg-slate-700 rounded-lg outline-none text-[11px] font-black uppercase tracking-wide dark:text-white border border-slate-200 dark:border-slate-600 focus:ring-1 focus:ring-orange-400 placeholder-slate-400" placeholder={`Label  (e.g. ${regLabel}, Licence No., Insurance)`} value={c.label} onChange={e => upd(i,'label',e.target.value)}/>
                 <button onClick={() => remove(i)} className="p-1.5 text-slate-400 hover:text-red-500 transition-colors flex-shrink-0"><Trash2 size={14}/></button>
               </div>
               <input className="w-full p-2 bg-slate-50 dark:bg-slate-700 rounded-lg outline-none text-sm font-mono font-bold dark:text-white border border-slate-200 dark:border-slate-600 focus:ring-1 focus:ring-orange-400 placeholder-slate-400" placeholder="Value / number" value={c.value} onChange={e => upd(i,'value',e.target.value)}/>
@@ -555,6 +555,7 @@
   };
 
   const BusinessProfileEditor = ({ profile, onSave, onClose, showToast }) => {
+    const cc = getCC();
     const [form, setForm] = useState({
       name: profile.name || '', tradingName: profile.tradingName || '',
       phone: profile.phone || '', email: profile.email || '', address: profile.address || '',
@@ -609,8 +610,8 @@
 
             <div>
               <div className="flex items-center gap-2 mb-1"><BadgeCheck size={15} className="text-emerald-500"/><span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Licences &amp; Credentials</span></div>
-              <p className="text-[10px] text-slate-400 mb-3">Add any credentials relevant to your country — ABN, licence numbers, insurance, certifications.</p>
-              <CredentialsEditor credentials={form.credentials} onChange={updated => setForm(f => ({ ...f, credentials: updated }))}/>
+              <p className="text-[10px] text-slate-400 mb-3">{`Add any credentials relevant to your country — ${cc.regLabel}, licence numbers, insurance, certifications.`}</p>
+              <CredentialsEditor credentials={form.credentials} onChange={updated => setForm(f => ({ ...f, credentials: updated }))} regLabel={cc.regLabel}/>
             </div>
           </div>
           <div className="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-800 flex-shrink-0">
@@ -812,7 +813,7 @@
                         </div>
                         {hasBiz
                           ? <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">{(businessProfile.credentials?.length || 0)} credential{(businessProfile.credentials?.length || 0) !== 1 ? 's' : ''} saved</p>
-                          : <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Logo, ABN, credentials, T&Cs</p>
+                          : <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Logo, {cc.regLabel}, credentials, T&Cs</p>
                         }
                       </div>
                     </div>
@@ -932,6 +933,21 @@
                       <button onClick={handleLicenceUnlock} className="w-full bg-orange-500 hover:bg-orange-400 text-white h-11 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors"><Lock size={15}/> Unlock</button>
                     </div>
                   )}
+                </div>
+
+                {/* Legal & Data */}
+                <div className="pt-2">
+                  <label className={sectionLabel}>Legal &amp; Privacy</label>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex gap-2">
+                      <a href="/privacy.html" target="_blank" className="flex-1 flex items-center justify-center gap-2 h-11 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">Privacy</a>
+                      <a href="/terms.html" target="_blank" className="flex-1 flex items-center justify-center gap-2 h-11 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">Terms</a>
+                      <a href="mailto:support@jim-pro.app" className="flex-1 flex items-center justify-center gap-2 h-11 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">Support</a>
+                    </div>
+                    <button onClick={() => { if(confirm("WARNING: This will permanently delete ALL jobs, templates, and settings. This cannot be undone. Are you sure?")) { localStorage.clear(); window.location.reload(); } }} className="w-full flex items-center justify-center gap-2 h-11 bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/40 rounded-xl text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-950/40 transition-colors">
+                      <Trash2 size={14}/> Delete All Data (Nuke)
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -1210,7 +1226,8 @@
     const totalHours = tasks.reduce((a,t) => a + parseTimeToMinutes(t.time), 0);
     const biz = businessProfile;
     
-    const docLabel = docStage === 'invoice' ? 'Tax Invoice' : 'Quotation';
+    const cc = getCC();
+    const docLabel = docStage === 'invoice' ? cc.invoiceLabel : 'Quotation';
     const matLabel = docStage === 'invoice' ? 'Materials Used' : 'Materials Needed';
     const toolLabel = docStage === 'invoice' ? 'Tools Used' : 'Tools Needed';
     
@@ -1379,7 +1396,7 @@
                     <div>
                       <h1 className={`text-2xl leading-tight ${s.accentText}`}>{biz.name}</h1>
                       {biz.tradingName && <p className="text-sm text-slate-500 font-medium">T/A {biz.tradingName}</p>}
-                      {biz.abn && <p className={`text-xs mt-0.5 font-mono ${docStyle==='corporate' ? 'text-slate-300' : 'font-bold text-slate-600'}`}>ABN {biz.abn}</p>}
+                      {biz.abn && <p className={`text-xs mt-0.5 font-mono ${docStyle==='corporate' ? 'text-slate-300' : 'font-bold text-slate-600'}`}>{cc.regLabel} {biz.abn}</p>}
                     </div>
                   </div>
                   <div className={`text-right text-sm space-y-0.5 flex flex-col items-end ${docStyle==='corporate' ? 'text-slate-200' : 'text-slate-600'}`}>
@@ -1662,7 +1679,7 @@
                     <div>
                       <h1 className="text-2xl font-black text-slate-900 leading-tight">{biz.name}</h1>
                       {biz.tradingName && <p className="text-sm text-slate-500 font-medium">T/A {biz.tradingName}</p>}
-                      {biz.abn && <p className="text-xs font-bold text-slate-600 mt-0.5 font-mono">ABN {biz.abn}</p>}
+                      {biz.abn && <p className="text-xs font-bold text-slate-600 mt-0.5 font-mono">{getCC().regLabel} {biz.abn}</p>}
                     </div>
                   </div>
                   <div className="text-right text-sm text-slate-600 space-y-0.5">
@@ -2570,7 +2587,7 @@ SCHEDULE:
 - You can print a weekly timesheet as a PDF from the schedule view.
 
 SETTINGS (gear icon on the dashboard):
-- Business Profile: your business name, ABN/registration number, address, phone, email, and logo. This appears on every PDF you generate.
+- Business Profile: your business name, {cc.regLabel}/registration number, address, phone, email, and logo. This appears on every PDF you generate.
 - Credentials: store your trade licences, insurance details, and expiry dates. JIM will warn you when they're about to expire.
 - Country: sets your currency, tax label (${cc.taxLabel}), and trade conventions. Currently set to ${cc.name}.
 - Extra tax rate: add a second tax line (e.g. state levy) on top of ${cc.taxLabel} if needed.
@@ -2852,7 +2869,7 @@ ${won.map(fmt).join('\n')}`;
         const taxLine = job.gstEnabled ? `Total includes ${cc.taxLabel} at ${cc.taxRate}%.` : `${cc.taxLabel} not applied.`;
         const prompt = `You are a professional ${cc.name} trade document writer. Generate a formal ${docType} suitable for a ${cc.name} client. Currency: ${cc.symbol} (${cc.currency}). Tax: ${cc.taxLabel}. ${taxLine}
 
-Business: ${biz.name || 'the contractor'}${biz.abn ? ` (Reg # ${biz.abn})` : ''}${biz.phone ? `, ${biz.phone}` : ''}.
+Business: ${biz.name || 'the contractor'}${biz.abn ? ` (${cc.regLabel} ${biz.abn})` : ''}${biz.phone ? `, ${biz.phone}` : ''}.
 Job: Address: ${job.address}, Client: ${job.clientName || 'the client'}.
 Total: ${cc.symbol}${qt.total.toFixed(2)}.
 
