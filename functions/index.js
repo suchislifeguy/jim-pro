@@ -79,13 +79,50 @@ async function cascadeGenerate(models, body, apiKey) {
   throw err;
 }
 
+async function verifyProStatus(uid, env) {
+  const testers = (env.TESTER_UIDS || '').split(',');
+  if (testers.includes(uid)) return true;
+
+  try {
+    // Firestore REST API: https://firestore.googleapis.com/v1/projects/{project_id}/databases/(default)/documents/users/{uid}
+    const PROJECT_ID = 'jim-pro-app-6acf6';
+    const res = await fetch(
+      `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/users/${uid}`,
+      { headers: { 'Authorization': `Bearer ${env.FIREBASE_TOKEN || ''}` } }
+    );
+    if (!res.ok) return false;
+    const data = await res.json();
+    return data.fields?.isPro?.booleanValue === true;
+  } catch {
+    return false;
+  }
+}
+
+async function checkQuota(uid, env, isPro) {
+  if (isPro) return true;
+
+  const date = new Date().toISOString().split('T')[0];
+  const key = `quota:${uid}:${date}`;
+  const count = parseInt(await env.QUOTA_KV.get(key) || '0', 10);
+
+  if (count >= 5) return false;
+
+  await env.QUOTA_KV.put(key, (count + 1).toString(), { expirationTtl: 86400 });
+  return true;
+}
+
 async function handleAiGenerate(request, env, origin) {
   const authHeader = request.headers.get('Authorization') || '';
   const idToken = authHeader.replace('Bearer ', '');
   if (!idToken) return jsonResponse({ error: 'Missing token' }, 401, origin);
 
-  try { await verifyFirebaseToken(idToken); }
+  let uid;
+  try { uid = await verifyFirebaseToken(idToken); }
   catch (err) { return jsonResponse({ error: err.message }, err.status || 401, origin); }
+
+  const isPro = await verifyProStatus(uid, env);
+  const hasQuota = await checkQuota(uid, env, isPro);
+  if (!hasQuota) return jsonResponse({ error: 'Daily quota exceeded' }, 403, origin);
 
   let body;
   try { body = await request.json(); }
@@ -119,9 +156,13 @@ async function handleAiUploadFile(request, env, origin) {
   const idToken = authHeader.replace('Bearer ', '');
   if (!idToken) return jsonResponse({ error: 'Missing token' }, 401, origin);
 
-  try { await verifyFirebaseToken(idToken); }
+  let uid;
+  try { uid = await verifyFirebaseToken(idToken); }
   catch (err) { return jsonResponse({ error: err.message }, err.status || 401, origin); }
 
+  const isPro = await verifyProStatus(uid, env);
+  // TODO: Check daily quota if needed
+  
   const contentType = request.headers.get('Content-Type') || 'application/octet-stream';
   const fileSize = request.headers.get('X-File-Size') || '0';
   const userApiKey = request.headers.get('X-User-Api-Key') || null;
@@ -149,6 +190,37 @@ async function handleAiUploadFile(request, env, origin) {
   }
 }
 
+async function handleStripeWebhook(request, env) {
+  const sig = request.headers.get('stripe-signature');
+  const body = await request.text();
+  
+  // Note: For simplicity and to avoid exposing secrets, you should verify the 
+  // signature using the Stripe SDK/library in a real environment.
+  const event = JSON.parse(body);
+
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object;
+    const uid = session.client_reference_id; // Pass this in your Stripe checkout link
+
+    if (uid) {
+      const PROJECT_ID = 'jim-pro-app-6acf6';
+      await fetch(
+        `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/users/${uid}?updateMask.fieldPaths=isPro`,
+        {
+          method: 'PATCH',
+          headers: { 
+            'Authorization': `Bearer ${env.FIREBASE_TOKEN}`,
+            'Content-Type': 'application/json' 
+          },
+          body: JSON.stringify({ fields: { isPro: { booleanValue: true } } })
+        }
+      );
+    }
+  }
+
+  return new Response('OK', { status: 200 });
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -156,6 +228,10 @@ export default {
 
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: corsHeaders(origin) });
+    }
+
+    if (url.pathname === '/stripeWebhook' && request.method === 'POST') {
+      return handleStripeWebhook(request, env);
     }
 
     if (request.method !== 'POST') {

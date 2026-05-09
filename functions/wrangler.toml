@@ -1,3 +1,11 @@
 name = "jim-pro-ai"
 main = "index.js"
 compatibility_date = "2025-01-01"
+
+kv_namespaces = [
+  { binding = "QUOTA_KV", id = "adadd7d29c384c30817c92537d337a00" }
+]
+
+[vars]
+TESTER_UIDS = "tester1,tester2,tester3"
+FIREBASE_TOKEN = "YOUR_SERVICE_ACCOUNT_TOKEN_OR_ACCESS_TOKEN"
