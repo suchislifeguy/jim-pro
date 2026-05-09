@@ -528,7 +528,7 @@
       <div className="fixed inset-0 z-[600] bg-slate-900/90 backdrop-blur-md flex items-end sm:items-center justify-center sm:p-4 animate-slide-up sm:animate-none">
         <div className="bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl w-full max-w-md p-6 shadow-2xl border dark:border-slate-800 pb-safe">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="font-black text-lg flex items-center gap-2"><Sparkles className="text-purple-500" size={20}/> Ask JIM</h3>
+            <h3 className="font-black text-lg flex items-center gap-2"><Sparkles className="text-purple-500" size={20}/> Ask AI</h3>
             <button onClick={onClose} aria-label="Close" className="w-9 h-9 flex items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-full text-slate-500 hover:text-slate-700 dark:hover:text-white transition-colors"><X size={18}/></button>
           </div>
           <p className="text-sm text-slate-500 dark:text-slate-400 mb-4 font-medium leading-relaxed">Give JIM a nudge — any extra details and he'll write your {docType} around them.</p>
@@ -550,7 +550,7 @@
           {isGenerating && (
             <div className="flex flex-col items-center gap-2 py-2 mb-2">
               <JimMascot size={52} state="thinking"/>
-              <p className="text-xs font-black text-purple-500 uppercase tracking-widest">JIM is thinking…</p>
+              <p className="text-xs font-black text-purple-500 uppercase tracking-widest">AI is thinking…</p>
             </div>
           )}
           <div className="flex gap-3">
@@ -1198,7 +1198,7 @@
             </div>
 
             <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-4 border border-slate-200 dark:border-slate-700">
-              <p className="text-[11px] font-black text-slate-700 dark:text-slate-300 uppercase flex items-center gap-1.5 mb-0.5"><JimMascot size={18} state="idle"/> Ask JIM</p>
+              <p className="text-[11px] font-black text-slate-700 dark:text-slate-300 uppercase flex items-center gap-1.5 mb-0.5"><JimMascot size={18} state="idle"/> Ask AI</p>
               <p className="text-[10px] text-slate-400 mb-3">Attach documents (PDF/Img) or dictate what you did.</p>
               <label className="flex items-center gap-2 mb-3 bg-slate-200 dark:bg-slate-700 px-3 py-2 rounded-lg cursor-pointer hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors text-xs font-black uppercase w-fit"><Upload size={13}/> Add Documents<input ref={fileInputRef} type="file" multiple accept=".pdf,image/jpeg,image/png,image/webp" className="hidden" onChange={handleFiles}/></label>
               {files.length > 0 && (
@@ -1224,7 +1224,7 @@
           <div className="flex gap-3 px-5 py-4 border-t border-slate-100 dark:border-slate-800">
             <button onClick={createManual} disabled={!addr.trim()} className={`flex-1 py-3.5 rounded-xl font-black text-sm shadow-sm transition-all active:scale-95 bg-slate-900 dark:bg-slate-700 text-white ${!addr.trim() ? 'opacity-40 cursor-not-allowed' : 'hover:bg-slate-800'}`}>Create</button>
             {canUseAI && (
-              <button onClick={createWithAI} disabled={isImporting} className="flex-1 bg-purple-600 hover:bg-purple-500 text-white py-3.5 rounded-xl font-black text-sm shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95"><Sparkles size={15}/> Ask JIM</button>
+              <button onClick={createWithAI} disabled={isImporting} className="flex-1 bg-purple-600 hover:bg-purple-500 text-white py-3.5 rounded-xl font-black text-sm shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95"><Sparkles size={15}/> Ask AI</button>
             )}
           </div>
         </div>
@@ -1242,6 +1242,10 @@
     const [signatureEnabled, setSignatureEnabled] = useState(job.showSignature || false);
     const [signatureData, setSignatureData] = useState(job.signature || null);
     const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+    
+    // New Stage and Style state
+    const [docStage, setDocStage] = useState(isCompletionDoc(job) ? 'invoice' : 'quote');
+    const [docStyle, setDocStyle] = useState('contractor');
 
     useEffect(() => { onUpdateJob({ ...job, tasks, date: new Date(header.date).toISOString(), showSignature: signatureEnabled, signature: signatureData }); }, [header.date, header.dueDate, signatureEnabled, signatureData, tasks]);
 
@@ -1250,9 +1254,63 @@
     const showCosts = job.showCosts;
     const totalHours = tasks.reduce((a,t) => a + parseTimeToMinutes(t.time), 0);
     const biz = businessProfile;
-    const docLabel = isCompletionDoc(job) ? 'Completion Report' : 'Quotation';
+    
+    const docLabel = docStage === 'invoice' ? 'Tax Invoice' : 'Quotation';
+    const matLabel = docStage === 'invoice' ? 'Materials Used' : 'Materials Needed';
+    const toolLabel = docStage === 'invoice' ? 'Tools Used' : 'Tools Needed';
+    
     const printLicences = (biz.licences || []);
     const hasInsurance = biz.insurance && biz.insurancePolicy;
+
+    // Style Mapping
+    const STYLES = {
+      contractor: {
+        container: "bg-white text-black p-6 sm:p-10 shadow-2xl rounded-sm",
+        headerLine: "border-b-2 border-slate-300 pb-4 mb-4",
+        accentText: "text-slate-900 font-black",
+        labelColor: "text-slate-500",
+        cardHeader: () => docStage === 'invoice' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-slate-50 text-slate-800 border-slate-200',
+        cardBody: "p-6",
+        totalBox: "mt-6 border-2 border-slate-900 rounded-2xl p-6 flex justify-between items-end",
+        fontFamily: "font-sans",
+        tableHeader: "bg-slate-50 text-slate-800 border-slate-200"
+      },
+      boutique: {
+        container: "bg-white text-slate-800 p-8 sm:p-12 shadow-xl rounded-xl",
+        headerLine: "border-b border-slate-100 pb-8 mb-8",
+        accentText: "text-slate-700 font-light",
+        labelColor: "text-slate-400 uppercase tracking-widest text-[9px]",
+        cardHeader: () => "bg-transparent border-b border-slate-100 text-slate-600 px-0 py-4",
+        cardBody: "py-6 px-0",
+        totalBox: "mt-12 bg-slate-50 rounded-3xl p-10 flex justify-between items-end",
+        fontFamily: "font-serif",
+        tableHeader: "border-b border-slate-200"
+      },
+      corporate: {
+        container: "bg-white text-slate-900 p-6 sm:p-10 border border-slate-200 rounded-none shadow-md",
+        headerLine: "bg-slate-900 text-white p-6 -mx-6 sm:-mx-10 mb-8",
+        accentText: "text-white font-bold",
+        labelColor: "text-slate-400 uppercase font-bold",
+        cardHeader: () => "bg-slate-100 text-slate-900 border-b border-slate-300 px-5 py-3",
+        cardBody: "p-6",
+        totalBox: "mt-10 bg-slate-900 text-white p-8 flex justify-between items-end",
+        fontFamily: "font-sans",
+        tableHeader: "bg-slate-200 text-slate-900"
+      },
+      industrial: {
+        container: "bg-white text-black p-4 sm:p-6 border-4 border-black rounded-none shadow-none",
+        headerLine: "border-b-4 border-black pb-4 mb-4",
+        accentText: "text-black font-black uppercase",
+        labelColor: "text-black font-black uppercase",
+        cardHeader: () => "border-4 border-black bg-black text-white px-4 py-2",
+        cardBody: "p-4 border-x-4 border-b-4 border-black",
+        totalBox: "mt-8 border-4 border-black p-6 flex justify-between items-end",
+        fontFamily: "font-mono",
+        tableHeader: "border-4 border-black"
+      }
+    };
+    
+    const s = STYLES[docStyle];
 
     const handleSharePDF = async () => {
       const element = document.getElementById('pdf-content');
@@ -1281,12 +1339,11 @@
     };
 
     const composeBody = () => {
-      const docName = isCompletionDoc(job) ? 'completion report' : 'quotation';
       const totalLine = totals.total > 0 ? `Total: ${fmtAUD(totals.total)}${job.gstEnabled ? ` (inc. ${getCC().taxLabel})` : ''}` : '';
       return [
         `Hi ${header.clientName || 'there'},`,
         '',
-        `Please find your ${docName} for ${header.address}.`,
+        `Please find your ${docLabel.toLowerCase()} for ${header.address}.`,
         totalLine,
         header.projectNotes ? `\n${header.projectNotes}` : '',
         '',
@@ -1297,8 +1354,7 @@
     };
 
     const handleEmail = () => {
-      const docName = isCompletionDoc(job) ? 'Completion Report' : 'Quotation';
-      const subject = encodeURIComponent(`${docName} — ${header.address}${biz.name ? ` (${biz.name})` : ''}`);
+      const subject = encodeURIComponent(`${docLabel} — ${header.address}${biz.name ? ` (${biz.name})` : ''}`);
       const body = encodeURIComponent(composeBody());
       const to = job.clientEmail || '';
       window.location.href = `mailto:${to}?subject=${subject}&body=${body}`;
@@ -1306,9 +1362,8 @@
 
     const handleSMS = () => {
       if (!job.clientPhone) { showToast('Add a client phone number first', 'error'); return; }
-      const docName = isCompletionDoc(job) ? 'invoice' : 'quote';
       const totalPart = totals.total > 0 ? ` is ${fmtAUD(totals.total)}` : ' is ready';
-      const msg = `Hi ${header.clientName || ''}, your ${docName} for ${header.address}${totalPart}. From ${biz.name || 'your tradie'}`;
+      const msg = `Hi ${header.clientName || ''}, your ${docLabel.toLowerCase()} for ${header.address}${totalPart}. From ${biz.name || 'your tradie'}`;
       window.location.href = `sms:${job.clientPhone}?body=${encodeURIComponent(msg)}`;
     };
 
@@ -1335,26 +1390,51 @@
             </div>
           </div>
 
-          <div id="pdf-content" className="bg-white text-black p-6 sm:p-10 shadow-2xl rounded-sm">
+          {/* Document Controls Toolbar */}
+          <div className="flex flex-wrap items-center gap-6 mb-6 p-5 bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl rounded-2xl border border-slate-200 dark:border-slate-700 no-print shadow-xl shadow-slate-200/50 dark:shadow-none">
+            <div className="flex flex-col gap-2">
+              <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Document Stage</label>
+              <div className="flex p-1 bg-slate-100 dark:bg-slate-900 rounded-xl">
+                <button onClick={() => setDocStage('quote')} className={`px-5 py-1.5 rounded-lg text-xs font-bold transition-all ${docStage === 'quote' ? 'bg-white dark:bg-slate-800 text-orange-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Quote</button>
+                <button onClick={() => setDocStage('invoice')} className={`px-5 py-1.5 rounded-lg text-xs font-bold transition-all ${docStage === 'invoice' ? 'bg-white dark:bg-slate-800 text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Invoice</button>
+              </div>
+            </div>
+            <div className="flex flex-col gap-2 flex-1 min-w-[280px]">
+              <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Persona Style</label>
+              <div className="flex gap-2">
+                {['Contractor', 'Boutique', 'Corporate', 'Industrial'].map(styleName => {
+                  const val = styleName.toLowerCase();
+                  const isActive = docStyle === val;
+                  return (
+                    <button key={val} onClick={() => setDocStyle(val)} className={`flex-1 py-1.5 rounded-lg text-[11px] font-black transition-all border-2 ${isActive ? 'bg-orange-500 border-orange-500 text-white shadow-lg shadow-orange-500/20' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 hover:border-slate-300 dark:hover:border-slate-600'}`}>
+                      {styleName}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          <div id="pdf-content" className={`${s.container} ${s.fontFamily}`}>
             {biz.name && (
-              <div className="pb-4 mb-4 border-b-2 border-slate-300">
+              <div className={s.headerLine}>
                 <div className="flex justify-between items-start">
                   <div className="flex items-center gap-4">
-                    {biz.logo && <img src={biz.logo} className="h-16 w-auto object-contain rounded-lg" alt={biz.name}/>}
+                    {biz.logo && <img src={biz.logo} className={`h-16 w-auto object-contain ${docStyle==='contractor' ? 'rounded-lg' : ''}`} alt={biz.name}/>}
                     <div>
-                      <h1 className="text-2xl font-black text-slate-900 leading-tight">{biz.name}</h1>
+                      <h1 className={`text-2xl leading-tight ${s.accentText}`}>{biz.name}</h1>
                       {biz.tradingName && <p className="text-sm text-slate-500 font-medium">T/A {biz.tradingName}</p>}
-                      {biz.abn && <p className="text-xs font-bold text-slate-600 mt-0.5 font-mono">ABN {biz.abn}</p>}
+                      {biz.abn && <p className={`text-xs mt-0.5 font-mono ${docStyle==='corporate' ? 'text-slate-300' : 'font-bold text-slate-600'}`}>ABN {biz.abn}</p>}
                     </div>
                   </div>
-                  <div className="text-right text-sm text-slate-600 space-y-0.5 flex flex-col items-end">
+                  <div className={`text-right text-sm space-y-0.5 flex flex-col items-end ${docStyle==='corporate' ? 'text-slate-200' : 'text-slate-600'}`}>
                     {biz.phone && <p className="font-bold">{biz.phone}</p>}
                     {biz.email && <p>{biz.email}</p>}
-                    {biz.address && <p className="text-slate-400 text-xs mb-2">{biz.address}</p>}
+                    {biz.address && <p className={`${docStyle==='corporate' ? 'text-slate-400' : 'text-slate-400'} text-xs mb-2`}>{biz.address}</p>}
                     {(printLicences.length > 0 || hasInsurance) && (
-                      <div className="mt-1 pt-2 border-t border-slate-200 inline-block text-right min-w-[150px]">
-                        {printLicences.map((lic, i) => <p key={i} className="text-[10px] text-slate-500 font-medium uppercase tracking-wide leading-tight mb-0.5">{lic.type}: <span className="font-bold text-slate-800 font-mono">{lic.number}</span></p>)}
-                        {hasInsurance && <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wide leading-tight">PLI ({biz.insurance}): <span className="font-bold text-slate-800 font-mono">{biz.insurancePolicy}</span></p>}
+                      <div className={`mt-1 pt-2 border-t inline-block text-right min-w-[150px] ${docStyle==='corporate' ? 'border-slate-700' : 'border-slate-200'}`}>
+                        {printLicences.map((lic, i) => <p key={i} className={`text-[10px] font-medium uppercase tracking-wide leading-tight mb-0.5 ${docStyle==='corporate' ? 'text-slate-400' : 'text-slate-500'}`}>{lic.type}: <span className={`font-mono ${docStyle==='corporate' ? 'text-white' : 'font-bold text-slate-800'}`}>{lic.number}</span></p>)}
+                        {hasInsurance && <p className={`text-[10px] font-medium uppercase tracking-wide leading-tight ${docStyle==='corporate' ? 'text-slate-400' : 'text-slate-500'}`}>PLI ({biz.insurance}): <span className={`font-mono ${docStyle==='corporate' ? 'text-white' : 'font-bold text-slate-800'}`}>{biz.insurancePolicy}</span></p>}
                       </div>
                     )}
                   </div>
@@ -1362,9 +1442,9 @@
               </div>
             )}
 
-            <div className="border-b-2 border-slate-300 pb-3 mb-4">
+            <div className={`${docStyle === 'corporate' ? 'mb-8' : 'border-b-2 border-slate-300 pb-3 mb-4'}`}>
               <div className="flex justify-between items-center mb-2">
-                <span className="text-xs font-black uppercase text-slate-500 tracking-widest">{docLabel}</span>
+                <span className={`text-xs font-black uppercase tracking-widest ${s.labelColor}`}>{docLabel}</span>
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-1.5"><span className="text-[10px] font-black text-slate-400 uppercase">Date:</span><input type="date" className="bg-transparent border-b border-dashed border-slate-400 text-right outline-none text-slate-800 text-xs font-bold cursor-pointer focus:border-orange-400" value={header.date} onChange={e => setHeader({...header, date: e.target.value})}/></div>
                 </div>
@@ -1386,61 +1466,68 @@
               </div>
             </div>
 
-            {tasks.map((t, idx) => {
-              const labour = (parseTimeToMinutes(t.time)/60)*(parseFloat(t.rate)||0);
-              const mats   = parseFloat(t.materialsCost)||0;
-              const subtotal = labour + mats;
-              return (
-                <div key={idx} className="print-card">
-                  <div className={`print-card-header px-5 py-3 font-black border-b flex justify-between items-center text-lg uppercase ${isCompletionDoc(job) ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-slate-50 text-slate-800 border-slate-200'}`}>
-                    <input className="flex-1 font-black bg-transparent border-none outline-none" value={t.title} onChange={e => updateTask(idx, 'title', e.target.value)} placeholder="Task Title"/>
-                    <input className="w-20 text-sm bg-transparent border-none outline-none text-right" value={t.time} onChange={e => updateTask(idx, 'time', e.target.value)} placeholder="Time"/>
-                    {showCosts && subtotal > 0 && <span className="text-sm text-emerald-700 ml-4">{fmtAUD(subtotal)}</span>}
-                  </div>
-                  <div className="p-6">
-                    <PrintEditableDiv value={t.desc} onChange={v => updateTask(idx, 'desc', v)} placeholder="Task description" className={`w-full text-[14px] text-slate-700 mb-6 border-l-4 border-slate-200 pl-4 italic font-medium bg-transparent outline-none ${!t.desc ? 'print:hidden' : ''}`}/>
-
-                    <div className="grid grid-cols-2 gap-4 mb-4">
-                      <div className={`p-4 bg-slate-50 rounded-xl border ${!t.materials ? 'print:hidden' : ''}`}>
-                        <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">{isCompletionDoc(job) ? 'Materials Used' : 'Materials Needed'}</label>
-                        <PrintEditableDiv value={t.materials} onChange={v => updateTask(idx, 'materials', v)} className="text-[12px] font-bold text-slate-600 bg-transparent" placeholder={isCompletionDoc(job) ? 'Materials Used' : 'Materials Needed'}/>
-                      </div>
-                      <div className={`p-4 bg-slate-50 rounded-xl border ${!t.tools ? 'print:hidden' : ''}`}>
-                        <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">{isCompletionDoc(job) ? 'Tools Used' : 'Tools Needed'}</label>
-                        <PrintEditableDiv value={t.tools} onChange={v => updateTask(idx, 'tools', v)} className="text-[12px] font-bold text-slate-600 bg-transparent" placeholder={isCompletionDoc(job) ? 'Tools Used' : 'Tools Needed'}/>
-                      </div>
-
-                      {showCosts && labour > 0 && (
-                        <div className="p-4 bg-slate-50 rounded-xl border">
-                          <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">Labour Cost</label>
-                          <span className="text-[12px] font-bold text-slate-600">{fmtAUD(labour)}{t.rate ? ` (${getCC().symbol}${t.rate}/hr)` : ''}</span>
-                        </div>
-                      )}
-                      {showCosts && mats > 0 && (
-                        <div className="p-4 bg-slate-50 rounded-xl border">
-                          <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">Materials Cost</label>
-                          <span className="text-[12px] font-bold text-slate-600">{fmtAUD(mats)}</span>
-                        </div>
-                      )}
+            <div className="space-y-4">
+              {tasks.map((t, idx) => {
+                const labour = (parseTimeToMinutes(t.time)/60)*(parseFloat(t.rate)||0);
+                const mats   = parseFloat(t.materialsCost)||0;
+                const subtotal = labour + mats;
+                return (
+                  <div key={idx} className={`${docStyle === 'contractor' ? 'print-card' : 'border-b border-slate-100 pb-6'}`}>
+                    <div className={`${s.cardHeader()} flex justify-between items-center text-lg uppercase`}>
+                      <input className="flex-1 font-black bg-transparent border-none outline-none" value={t.title} onChange={e => updateTask(idx, 'title', e.target.value)} placeholder="Task Title"/>
+                      <input className="w-20 text-sm bg-transparent border-none outline-none text-right font-bold" value={t.time} onChange={e => updateTask(idx, 'time', e.target.value)} placeholder="Time"/>
+                      {showCosts && subtotal > 0 && <span className="text-sm font-black ml-4">{fmtAUD(subtotal)}</span>}
                     </div>
-                    {t.images?.length > 0 && <div className="print-img-container">{t.images.map((img,i) => <div key={i} className="rounded-lg overflow-hidden border aspect-[4/3] shadow-sm bg-slate-100"><img src={img} className="w-full h-full object-cover"/></div>)}</div>}
+                    <div className={s.cardBody}>
+                      <PrintEditableDiv value={t.desc} onChange={v => updateTask(idx, 'desc', v)} placeholder="Task description" className={`w-full text-[14px] text-slate-700 mb-6 border-l-4 border-slate-200 pl-4 italic font-medium bg-transparent outline-none ${!t.desc ? 'print:hidden' : ''}`}/>
+
+                      <div className="grid grid-cols-2 gap-4 mb-4">
+                        <div className={`${docStyle==='industrial' ? 'border-4 border-black p-4' : 'p-4 bg-slate-50 rounded-xl border'} ${!t.materials ? 'print:hidden' : ''}`}>
+                          <label className={`text-[10px] font-black uppercase block mb-1 ${s.labelColor}`}>{matLabel}</label>
+                          <PrintEditableDiv value={t.materials} onChange={v => updateTask(idx, 'materials', v)} className="text-[12px] font-bold text-slate-600 bg-transparent" placeholder={matLabel}/>
+                        </div>
+                        <div className={`${docStyle==='industrial' ? 'border-4 border-black p-4' : 'p-4 bg-slate-50 rounded-xl border'} ${!t.tools ? 'print:hidden' : ''}`}>
+                          <label className={`text-[10px] font-black uppercase block mb-1 ${s.labelColor}`}>{toolLabel}</label>
+                          <PrintEditableDiv value={t.tools} onChange={v => updateTask(idx, 'tools', v)} className="text-[12px] font-bold text-slate-600 bg-transparent" placeholder={toolLabel}/>
+                        </div>
+
+                        {showCosts && labour > 0 && (
+                          <div className={`${docStyle==='industrial' ? 'border-4 border-black p-4' : 'p-4 bg-slate-50 rounded-xl border'}`}>
+                            <label className={`text-[10px] font-black uppercase block mb-1 ${s.labelColor}`}>Labour Cost</label>
+                            <span className="text-[12px] font-bold text-slate-600">{fmtAUD(labour)}{t.rate ? ` (${getCC().symbol}${t.rate}/hr)` : ''}</span>
+                          </div>
+                        )}
+                        {showCosts && mats > 0 && (
+                          <div className={`${docStyle==='industrial' ? 'border-4 border-black p-4' : 'p-4 bg-slate-50 rounded-xl border'}`}>
+                            <label className={`text-[10px] font-black uppercase block mb-1 ${s.labelColor}`}>Materials Cost</label>
+                            <span className="text-[12px] font-bold text-slate-600">{fmtAUD(mats)}</span>
+                          </div>
+                        )}
+                      </div>
+                      {t.images?.length > 0 && <div className="print-img-container">{t.images.map((img,i) => <div key={i} className={`overflow-hidden border aspect-[4/3] shadow-sm bg-slate-100 ${docStyle==='contractor' ? 'rounded-lg' : ''}`}><img src={img} className="w-full h-full object-cover"/></div>)}</div>}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
 
             {showCosts && totals.total > 0 && (
-              <div className="mt-6 border-2 border-slate-900 rounded-2xl p-6 flex justify-between items-end">
-                <div>
-                  <p className="font-black uppercase text-slate-500 text-sm">Labour: {fmtAUD(totals.labour)}</p>
-                  <p className="font-black uppercase text-slate-500 text-sm">Materials: {fmtAUD(totals.mats)}</p>
-                  {job.gstEnabled && (<><p className="font-black uppercase text-slate-600 text-sm mt-2 border-t border-slate-200 pt-2">Subtotal: {fmtAUD(totals.subtotal)}</p><p className="font-black uppercase text-slate-600 text-sm">{getCC().taxLabel} ({getCC().taxRate}%): {fmtAUD(totals.gst)}</p></>)}
+              <div className={s.totalBox}>
+                <div className={docStyle === 'corporate' ? 'space-y-1' : ''}>
+                  <p className={`font-black uppercase text-sm ${docStyle==='corporate' ? 'text-slate-400' : 'text-slate-500'}`}>Labour: {fmtAUD(totals.labour)}</p>
+                  <p className={`font-black uppercase text-sm ${docStyle==='corporate' ? 'text-slate-400' : 'text-slate-500'}`}>Materials: {fmtAUD(totals.mats)}</p>
+                  {job.gstEnabled && (
+                    <div className={`mt-2 border-t pt-2 ${docStyle==='corporate' ? 'border-slate-700' : 'border-slate-200'}`}>
+                      <p className={`font-black uppercase text-sm ${docStyle==='corporate' ? 'text-slate-300' : 'text-slate-600'}`}>Subtotal: {fmtAUD(totals.subtotal)}</p>
+                      <p className={`font-black uppercase text-sm ${docStyle==='corporate' ? 'text-slate-300' : 'text-slate-600'}`}>{getCC().taxLabel} ({getCC().taxRate}%): {fmtAUD(totals.gst)}</p>
+                    </div>
+                  )}
                   {extraTaxRate > 0 && <p className="font-black uppercase text-purple-600 text-sm">{getCC().markupLabel} ({extraTaxRate}%): {fmtAUD(totals.extra)}</p>}
                 </div>
                 <div className="text-right">
-                  <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">{isCompletionDoc(job) ? 'Total Due' : job.gstEnabled ? `Total inc. Tax/${getCC().taxLabel}` : 'Quotation Total'}</p>
-                  <p className="text-4xl font-black text-slate-900">{fmtAUD(totals.total)}</p>
-                  {job.gstEnabled && <p className="text-xs text-slate-400 font-bold mt-1">{getCC().taxLabel} included: {fmtAUD(totals.gst)}</p>}
+                  <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${docStyle==='corporate' ? 'text-orange-400' : 'text-slate-400'}`}>{docStage === 'invoice' ? 'Total Due' : job.gstEnabled ? `Total inc. Tax/${getCC().taxLabel}` : 'Quotation Total'}</p>
+                  <p className={`text-4xl font-black ${docStyle==='corporate' ? 'text-white' : 'text-slate-900'}`}>{fmtAUD(totals.total)}</p>
+                  {job.gstEnabled && <p className={`text-xs font-bold mt-1 ${docStyle==='corporate' ? 'text-slate-400' : 'text-slate-400'}`}>{getCC().taxLabel} included: {fmtAUD(totals.gst)}</p>}
                 </div>
               </div>
             )}
@@ -1453,8 +1540,8 @@
             )}
 
             {biz.termsAndConditions && (
-              <div className="mt-12 pt-4 border-t border-slate-300 text-[10px] text-slate-500 font-medium whitespace-pre-wrap leading-tight break-inside-avoid">
-                <p className="font-bold text-slate-700 uppercase mb-1">Terms & Conditions</p>
+              <div className={`mt-12 pt-4 border-t border-slate-300 text-[10px] font-medium whitespace-pre-wrap leading-tight break-inside-avoid ${docStyle==='corporate' ? 'text-slate-400' : 'text-slate-500'}`}>
+                <p className={`font-bold uppercase mb-1 ${docStyle==='corporate' ? 'text-slate-300' : 'text-slate-700'}`}>Terms & Conditions</p>
                 {biz.termsAndConditions}
               </div>
             )}
@@ -1908,8 +1995,8 @@
       const statusLabel = {
         connecting: 'Initialising...',
         listening: 'Listening...',
-        thinking: 'JIM is thinking...',
-        speaking: 'JIM is speaking...',
+        thinking: 'AI is thinking...',
+        speaking: 'AI is speaking...',
         error: 'Connection error',
         idle: 'Paused'
       };
@@ -1925,7 +2012,7 @@
             <div className="flex justify-between items-center px-5 pt-5 pb-3 border-b border-slate-800 flex-shrink-0">
               <div className="flex items-center gap-2.5">
                 <div className={`w-2.5 h-2.5 rounded-full ${dotColor}`} />
-                <h2 className="text-white font-black text-sm tracking-tight uppercase">JIM Voice</h2>
+                <h2 className="text-white font-black text-sm tracking-tight uppercase">Voice Mode</h2>
                 <span className={`text-xs font-bold uppercase ${statusColor}`}>{statusLabel[status] || '...'}</span>
               </div>
               <div className="flex items-center gap-2">
@@ -1979,7 +2066,7 @@
           <div className="flex justify-between items-center px-1">
             <div className="flex items-center gap-2">
               <div className={`w-2.5 h-2.5 rounded-full ${dotColor}`} />
-              <h2 className="text-white font-black text-sm tracking-tight uppercase">JIM Voice</h2>
+              <h2 className="text-white font-black text-sm tracking-tight uppercase">Voice Mode</h2>
             </div>
             <div className="flex items-center gap-1.5">
               <button onClick={() => setExpanded(true)} className="text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 p-1.5 rounded-full transition-colors" title="Expand">
@@ -2331,7 +2418,7 @@
       if (completedNotInvoiced.length) return { state: 'idle', msg: `${completedNotInvoiced.length} job${completedNotInvoiced.length>1?'s':''} finished and waiting on an invoice.` };
       if (sentCold.length) return { state: 'idle', msg: `${sentCold.length} quote${sentCold.length>1?'s':''} sitting cold for >7 days — follow up?` };
       if (approvedStale.length) return { state: 'idle', msg: `${approvedStale.length} approved job${approvedStale.length>1?'s':''} haven't kicked off yet.` };
-      if (recentlyLost.length >= 3) return { state: 'idle', msg: `${recentlyLost.length} quotes lost in the last 30 days — ask JIM why.` };
+      if (recentlyLost.length >= 3) return { state: 'idle', msg: `${recentlyLost.length} quotes lost in the last 30 days — ask AI why.` };
       const activeCount = jobs.filter(j => j.status !== 'rejected').length;
       if (activeCount === 0) return { state: 'wave', msg: "G'day! Create your first quote or completion report to get started." };
       return { state: 'wave', msg: `All looking good! ${activeCount} project${activeCount>1?'s':''} on the books.` };
@@ -2470,7 +2557,7 @@ GETTING STARTED:
 CREATING A JOB:
 - Tap "New Quote" or "Completion" on the dashboard.
 - Fill in the address (required), client name, phone, email, due date. The rest is optional at this stage.
-- "Ask JIM" at the bottom: attach a photo of a scope-of-work text, a message from the client, or a receipt — JIM will read it and pre-fill the job for you.
+- "Ask AI" at the bottom: attach a photo of a scope-of-work text, a message from the client, or a receipt — JIM will read it and pre-fill the job for you.
 - Tap "Create" to save it. You can edit everything after.
 
 TASKS (LINE ITEMS):
@@ -2478,7 +2565,7 @@ TASKS (LINE ITEMS):
 - Each task has: a title, time (hours), hourly rate, materials cost, a materials list, a tools list, and a description/notes field.
 - Tap "Add Task" to create one manually, or use a saved template from the template library.
 - The "Polish" button (wand icon) on a task description rewrites it into professional trade language.
-- The "Ask JIM to draft this" button fills in a task's details based on its title — just type the task name and let JIM fill the rest.
+- The "Ask AI to draft this" button fills in a task's details based on its title — just type the task name and let JIM fill the rest.
 
 STATUS FLOW — how a job moves through its life:
 - Drafting: you're still building the quote.
@@ -2504,7 +2591,7 @@ PDF / DOCUMENTS:
 - Open a job, then tap the "PDF" button in the top-right corner.
 - This opens a print preview of the Quotation or Completion Invoice.
 - You can edit the document title, notes, and line items directly in the preview.
-- "Ask JIM" inside the preview will rewrite the whole document professionally based on the job data.
+- "Ask AI" inside the preview will rewrite the whole document professionally based on the job data.
 - Share as PDF via the share button — works with WhatsApp, email, AirDrop, etc.
 - To print, use your browser's print function from the preview.
 - Invoice numbers: tap "Generate invoice number" inside the job to auto-assign one (INV-YEAR-XXX).
@@ -2524,7 +2611,7 @@ SETTINGS (gear icon on the dashboard):
 - Country: sets your currency, tax label (${cc.taxLabel}), and trade conventions. Currently set to ${cc.name}.
 - Extra tax rate: add a second tax line (e.g. state levy) on top of ${cc.taxLabel} if needed.
 - Dark mode: toggle between light and dark theme.
-- AI features are built in — no setup needed. Ask JIM, receipt scan, polish, and document generation all work out of the box.
+- AI features are built in — no setup needed. Ask AI, receipt scan, polish, and document generation all work out of the box.
 - Templates: save your commonly used tasks as reusable templates. Tap "Templates" in Settings to manage them.
 - Materials library: save your go-to materials with prices so you can insert them into jobs quickly.
 - Export data: downloads a JSON backup of all your jobs — good for peace of mind.
@@ -2539,7 +2626,7 @@ JIM LIVE (microphone button, top-right of every screen):
 OFFLINE USE:
 - JIM works without internet. All data is saved on your device.
 - You can create jobs, add tasks, and generate PDFs with no signal.
-- AI features (Ask JIM, Polish, document generation) require an internet connection.
+- AI features (Ask AI, Polish, document generation) require an internet connection.
 
 PHOTOS:
 - Add photos to a job from the job header (project photos) or to individual tasks.
@@ -3298,7 +3385,7 @@ Return ONLY a valid JSON object. Format: {"cost": 123.45, "items": "Hammer\\nNai
                   <div className="flex flex-col items-center py-16 gap-3">
                     <p className="text-slate-600 dark:text-slate-400 font-semibold text-sm">No clients yet</p>
                     <button onClick={startJimLive} className="flex items-center gap-1.5 px-4 h-9 bg-purple-50 dark:bg-purple-950/30 hover:bg-purple-100 dark:hover:bg-purple-950/50 text-purple-600 dark:text-purple-400 rounded-full text-xs font-bold border border-purple-200 dark:border-purple-800 transition-colors active:scale-95">
-                      <Mic size={13}/> Call JIM
+                      <Mic size={13}/> Voice Mode
                     </button>
                   </div>
                 )}
@@ -3342,7 +3429,7 @@ Return ONLY a valid JSON object. Format: {"cost": 123.45, "items": "Hammer\\nNai
                       <p className="font-extrabold text-slate-900 dark:text-white text-sm mt-1">{revenueStats.lostCount} quote{revenueStats.lostCount!==1?'s':''} · {fmtAUD(revenueStats.lost)}</p>
                     </div>
                     <button onClick={handleAnalyzeLostPile} disabled={isAnalyzingLost || revenueStats.lostQuotes < 1} className="h-9 px-3.5 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:bg-slate-300 dark:disabled:bg-slate-700 text-white text-xs font-bold flex items-center gap-1.5 transition-colors flex-shrink-0">
-                      <Sparkles size={13}/> {isAnalyzingLost ? 'Asking…' : 'Ask JIM why'}
+                      <Sparkles size={13}/> {isAnalyzingLost ? 'Asking…' : 'Ask AI why'}
                     </button>
                   </div>
                   {lostAnalysis && (
@@ -3404,7 +3491,7 @@ Return ONLY a valid JSON object. Format: {"cost": 123.45, "items": "Hammer\\nNai
                     <>
                       <p className="text-slate-500 dark:text-slate-500 text-xs text-center font-medium">Tap <span className="font-semibold">New Quote</span> to get started</p>
                       <button onClick={startJimLive} className="flex items-center gap-1.5 mt-1 px-4 h-9 bg-purple-50 dark:bg-purple-950/30 hover:bg-purple-100 dark:hover:bg-purple-950/50 text-purple-600 dark:text-purple-400 rounded-full text-xs font-bold border border-purple-200 dark:border-purple-800 transition-colors active:scale-95">
-                        <Mic size={13}/> Call JIM
+                        <Mic size={13}/> Voice Mode
                       </button>
                     </>
                   )}
@@ -3585,7 +3672,7 @@ Return ONLY a valid JSON object. Format: {"cost": 123.45, "items": "Hammer\\nNai
                     <button onClick={startEditHeader} className="h-12 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 flex items-center justify-center gap-1.5 transition-colors"><Pencil size={14}/> Edit</button>
                     <button onClick={() => openAppointmentForJob(activeJobId)} className="h-12 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 flex items-center justify-center gap-1.5 transition-colors"><CalendarPlus size={14}/> Schedule</button>
                     <button onClick={() => openTimeEntryForJob(activeJobId)} className="h-12 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 flex items-center justify-center gap-1.5 transition-colors"><Timer size={14}/> Log Time</button>
-                    <button onClick={() => setShowAIAssistModal(true)} className="h-12 bg-purple-50 dark:bg-purple-950/30 hover:bg-purple-100 dark:hover:bg-purple-950/50 rounded-xl text-xs font-semibold text-purple-700 dark:text-purple-400 flex items-center justify-center gap-1.5 transition-colors"><Sparkles size={14}/> Ask JIM</button>
+                    <button onClick={() => setShowAIAssistModal(true)} className="h-12 bg-purple-50 dark:bg-purple-950/30 hover:bg-purple-100 dark:hover:bg-purple-950/50 rounded-xl text-xs font-semibold text-purple-700 dark:text-purple-400 flex items-center justify-center gap-1.5 transition-colors"><Sparkles size={14}/> Ask AI</button>
                   </div>
 
                   {/* SMS ETA — its own row so its absence/presence never shifts other buttons */}
@@ -3724,7 +3811,7 @@ Return ONLY a valid JSON object. Format: {"cost": 123.45, "items": "Hammer\\nNai
           {[
             { key: 'home', icon: Home, label: 'Home', active: viewMode==='dashboard' && !selectionMode, onClick: () => { setViewMode('dashboard'); setSelectionMode(false); } },
             { key: 'route', icon: Map, label: selectionMode ? 'Done' : 'Route', active: selectionMode, onClick: () => { setViewMode('dashboard'); setSelectionMode(!selectionMode); } },
-            { key: 'schedule', icon: Calendar, label: 'Schedule', active: viewMode==='schedule', onClick: () => setViewMode('schedule') },
+            { key: 'schedule', icon: Calendar, label: 'Schedule', active: viewMode==='schedule', onClick: () => setViewMode(viewMode==='schedule' ? 'dashboard' : 'schedule') },
             { key: 'settings', icon: Settings, label: 'Settings', active: false, badge: expiringCreds.length > 0, onClick: () => setShowSettings(true) },
           ].map(item => {
             const Icon = item.icon;
@@ -3829,12 +3916,12 @@ Return ONLY a valid JSON object. Format: {"cost": 123.45, "items": "Hammer\\nNai
                     <textarea placeholder="Full details…" className="w-full p-3.5 pr-3.5 pb-11 bg-slate-50 dark:bg-slate-800 rounded-xl outline-none text-sm font-medium h-32 resize-none dark:text-white dark:placeholder-slate-500 custom-scrollbar border border-slate-200 dark:border-slate-700 focus:border-orange-400 focus:ring-1 focus:ring-orange-400/40 transition-all" value={taskData.desc} onChange={e=>setTaskData(p=>({...p,desc:e.target.value}))}/>
                     <div className="absolute bottom-1.5 right-1.5 flex gap-1">
                       <button type="button" onClick={handleProfessionalize} disabled={isProfessionalizing} aria-label="Let JIM polish this" className="flex items-center gap-1 h-8 px-2.5 rounded-lg text-xs font-semibold text-purple-600 hover:bg-purple-100 dark:text-purple-400 dark:hover:bg-purple-950/40 transition-colors disabled:opacity-50">
-                        {isProfessionalizing ? <div className="w-3 h-3 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"/> : <Wand2 size={13}/>} JIM Polishes
+                        {isProfessionalizing ? <div className="w-3 h-3 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"/> : <Wand2 size={13}/>} AI Polish
                       </button>
                       <button type="button" onClick={() => toggleVoice('taskDesc', (val) => setTaskData(p => ({...p, desc: typeof val === 'function' ? val(p.desc) : val})))} aria-label="Dictate description" className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${listeningField==='taskDesc'?'bg-red-500 text-white animate-pulse':'text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-700'}`}><Mic size={14}/></button>
                     </div>
                   </div>
-                  <button onClick={handleAiSuggest} disabled={isAiSuggesting} className={`w-full mt-2 flex items-center justify-center gap-2 h-10 rounded-xl font-semibold text-xs transition-all active:scale-95 ${isAiSuggesting ? 'bg-purple-100 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 cursor-wait' : 'bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/30 dark:hover:bg-purple-950/50 text-purple-700 dark:text-purple-300'}`}>{isAiSuggesting ? <><JimMascot size={14} state="thinking"/> JIM is writing…</> : <><Sparkles size={13}/> JIM Writes</>}</button>
+                  <button onClick={handleAiSuggest} disabled={isAiSuggesting} className={`w-full mt-2 flex items-center justify-center gap-2 h-10 rounded-xl font-semibold text-xs transition-all active:scale-95 ${isAiSuggesting ? 'bg-purple-100 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 cursor-wait' : 'bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/30 dark:hover:bg-purple-950/50 text-purple-700 dark:text-purple-300'}`}>{isAiSuggesting ? <><JimMascot size={14} state="thinking"/> AI is writing…</> : <><Sparkles size={13}/> AI Write</>}</button>
                 </div>
 
                 {/* Materials & Tools — always visible, separate from costs */}

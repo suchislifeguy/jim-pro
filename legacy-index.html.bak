@@ -727,11 +727,11 @@
       <div className="fixed inset-0 z-[600] bg-slate-900/90 backdrop-blur-md flex items-end sm:items-center justify-center sm:p-4 animate-slide-up sm:animate-none">
         <div className="bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl w-full max-w-md p-6 shadow-2xl border dark:border-slate-800 pb-safe">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="font-black text-lg flex items-center gap-2"><Sparkles className="text-purple-500" size={20}/> Ask JIM</h3>
+            <h3 className="font-black text-lg flex items-center gap-2"><Sparkles className="text-purple-500" size={20}/> Ask AI</h3>
             <button onClick={onClose} aria-label="Close" className="w-9 h-9 flex items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-full text-slate-500 hover:text-slate-700 dark:hover:text-white transition-colors"><X size={18}/></button>
           </div>
           {!apiKey ? (
-            <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-xl border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-sm font-bold mb-4">Please add your Gemini API Key in Settings to use Ask JIM features.</div>
+            <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-xl border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-sm font-bold mb-4">Please add your Gemini API Key in Settings to use Ask AI features.</div>
           ) : (
             <>
               <p className="text-sm text-slate-500 dark:text-slate-400 mb-4 font-medium leading-relaxed">Provide optional instructions to guide the AI when generating this {docType}.</p>
@@ -753,7 +753,7 @@
               {isGenerating && (
                 <div className="flex flex-col items-center gap-2 py-2 mb-2">
                   <JimMascot size={52} state="thinking"/>
-                  <p className="text-xs font-black text-purple-500 uppercase tracking-widest">JIM is thinking…</p>
+                  <p className="text-xs font-black text-purple-500 uppercase tracking-widest">AI is thinking…</p>
                 </div>
               )}
               <div className="flex gap-3">
@@ -1384,7 +1384,7 @@
             </div>
 
             <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-4 border border-slate-200 dark:border-slate-700">
-              <p className="text-[11px] font-black text-slate-700 dark:text-slate-300 uppercase flex items-center gap-1.5 mb-0.5"><JimMascot size={18} state="idle"/> Ask JIM</p>
+              <p className="text-[11px] font-black text-slate-700 dark:text-slate-300 uppercase flex items-center gap-1.5 mb-0.5"><JimMascot size={18} state="idle"/> Ask AI</p>
               <p className="text-[10px] text-slate-400 mb-3">Attach documents (PDF/Img) or dictate what you did.</p>
               <label className="flex items-center gap-2 mb-3 bg-slate-200 dark:bg-slate-700 px-3 py-2 rounded-lg cursor-pointer hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors text-xs font-black uppercase w-fit"><Upload size={13}/> Add Documents<input ref={fileInputRef} type="file" multiple accept=".pdf,image/jpeg,image/png,image/webp" className="hidden" onChange={handleFiles}/></label>
               {files.length > 0 && (
@@ -1410,7 +1410,7 @@
           <div className="flex gap-3 px-5 py-4 border-t border-slate-100 dark:border-slate-800">
             <button onClick={createManual} disabled={!addr.trim()} className={`flex-1 py-3.5 rounded-xl font-black text-sm shadow-sm transition-all active:scale-95 bg-slate-900 dark:bg-slate-700 text-white ${!addr.trim() ? 'opacity-40 cursor-not-allowed' : 'hover:bg-slate-800'}`}>Create</button>
             {canUseAI && (
-              <button onClick={createWithAI} disabled={isImporting} className="flex-1 bg-purple-600 hover:bg-purple-500 text-white py-3.5 rounded-xl font-black text-sm shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95"><Sparkles size={15}/> Ask JIM</button>
+              <button onClick={createWithAI} disabled={isImporting} className="flex-1 bg-purple-600 hover:bg-purple-500 text-white py-3.5 rounded-xl font-black text-sm shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95"><Sparkles size={15}/> Ask AI</button>
             )}
           </div>
         </div>
@@ -2094,7 +2094,7 @@
       const statusLabel = {
         connecting: 'Initialising...',
         listening: 'Listening...',
-        thinking: 'JIM is thinking...',
+        thinking: 'AI is thinking...',
         speaking: 'JIM is speaking...',
         error: 'Connection error',
         idle: 'Paused'
@@ -3284,7 +3284,7 @@ Return ONLY a valid JSON object. Format: {"cost": 123.45, "items": "Hammer\\nNai
                       <p className="font-extrabold text-slate-900 dark:text-white text-sm mt-1">{revenueStats.lostCount} quote{revenueStats.lostCount!==1?'s':''} · {fmtAUD(revenueStats.lost)}</p>
                     </div>
                     <button onClick={handleAnalyzeLostPile} disabled={isAnalyzingLost || revenueStats.lostQuotes < 1} className="h-9 px-3.5 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:bg-slate-300 dark:disabled:bg-slate-700 text-white text-xs font-bold flex items-center gap-1.5 transition-colors flex-shrink-0">
-                      <Sparkles size={13}/> {isAnalyzingLost ? 'Asking…' : 'Ask JIM why'}
+                      <Sparkles size={13}/> {isAnalyzingLost ? 'Asking…' : 'Ask AI why'}
                     </button>
                   </div>
                   {lostAnalysis && (
@@ -3521,7 +3521,7 @@ Return ONLY a valid JSON object. Format: {"cost": 123.45, "items": "Hammer\\nNai
                     <button onClick={startEditHeader} className="h-12 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 flex items-center justify-center gap-1.5 transition-colors"><Pencil size={14}/> Edit</button>
                     <button onClick={() => openAppointmentForJob(activeJobId)} className="h-12 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 flex items-center justify-center gap-1.5 transition-colors"><CalendarPlus size={14}/> Schedule</button>
                     <button onClick={() => openTimeEntryForJob(activeJobId)} className="h-12 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 flex items-center justify-center gap-1.5 transition-colors"><Timer size={14}/> Log Time</button>
-                    <button onClick={() => setShowAIAssistModal(true)} className="h-12 bg-purple-50 dark:bg-purple-950/30 hover:bg-purple-100 dark:hover:bg-purple-950/50 rounded-xl text-xs font-semibold text-purple-700 dark:text-purple-400 flex items-center justify-center gap-1.5 transition-colors"><Sparkles size={14}/> Ask JIM</button>
+                    <button onClick={() => setShowAIAssistModal(true)} className="h-12 bg-purple-50 dark:bg-purple-950/30 hover:bg-purple-100 dark:hover:bg-purple-950/50 rounded-xl text-xs font-semibold text-purple-700 dark:text-purple-400 flex items-center justify-center gap-1.5 transition-colors"><Sparkles size={14}/> Ask AI</button>
                   </div>
 
                   {/* SMS ETA — its own row so its absence/presence never shifts other buttons */}
@@ -3770,7 +3770,7 @@ Return ONLY a valid JSON object. Format: {"cost": 123.45, "items": "Hammer\\nNai
                       <button type="button" onClick={() => toggleVoice('taskDesc', (val) => setTaskData(p => ({...p, desc: typeof val === 'function' ? val(p.desc) : val})))} aria-label="Dictate description" className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${listeningField==='taskDesc'?'bg-red-500 text-white animate-pulse':'text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-700'}`}><Mic size={14}/></button>
                     </div>
                   </div>
-                  <button onClick={handleAiSuggest} disabled={isAiSuggesting} className={`w-full mt-2 flex items-center justify-center gap-2 h-10 rounded-xl font-semibold text-xs transition-all active:scale-95 ${isAiSuggesting ? 'bg-purple-100 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 cursor-wait' : 'bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/30 dark:hover:bg-purple-950/50 text-purple-700 dark:text-purple-300'}`}>{isAiSuggesting ? <><JimMascot size={14} state="thinking"/> JIM is thinking…</> : <><Sparkles size={13}/> Ask JIM to draft this</>}</button>
+                  <button onClick={handleAiSuggest} disabled={isAiSuggesting} className={`w-full mt-2 flex items-center justify-center gap-2 h-10 rounded-xl font-semibold text-xs transition-all active:scale-95 ${isAiSuggesting ? 'bg-purple-100 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 cursor-wait' : 'bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/30 dark:hover:bg-purple-950/50 text-purple-700 dark:text-purple-300'}`}>{isAiSuggesting ? <><JimMascot size={14} state="thinking"/> AI is thinking…</> : <><Sparkles size={13}/> Ask AI to draft this</>}</button>
                 </div>
 
                 {/* Materials & Tools — always visible, separate from costs */}
