@@ -9,7 +9,7 @@ export default defineConfig({
                             tailwindcss(),
                             VitePWA({
                               registerType: 'prompt', // Forces user to click "Reload"
-                              includeAssets: ['favicon.ico', 'apple-touch-icon.png'],
+                              includeAssets: ['favicon.svg'],
                               manifest: {
                                 name: 'JIM Pro',
                                 short_name: 'JIM',
@@ -17,14 +17,20 @@ export default defineConfig({
                                 theme_color: '#ffffff',
                                 icons: [
                                   {
-                                    src: 'pwa-192x192.png',
+                                    src: 'icon-192.png',
                                     sizes: '192x192',
                                     type: 'image/png'
                                   },
                                   {
-                                    src: 'pwa-512x512.png',
+                                    src: 'icon-512.png',
                                     sizes: '512x512',
                                     type: 'image/png'
+                                  },
+                                  {
+                                    src: 'icon-512.png',
+                                    sizes: '512x512',
+                                    type: 'image/png',
+                                    purpose: 'any maskable'
                                   }
                                 ]
                               },
