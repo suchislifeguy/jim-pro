@@ -244,15 +244,6 @@
     if (res.ok) return await res.json();
     let errBody = {};
     try { errBody = await res.json(); } catch {}
-    if (res.status === 429 && errBody.code === 'QUOTA_EXCEEDED') {
-      const err = new Error(errBody.isPro
-        ? `You've used all ${errBody.limit} AI calls for today. Try again tomorrow.`
-        : `You've used your ${errBody.limit} free AI calls for today. Upgrade for more.`
-      );
-      err.code = 'QUOTA_EXCEEDED';
-      err.isPro = errBody.isPro;
-      throw err;
-    }
     if (res.status === 503 && errBody.code === 'GEMINI_OVERLOADED') {
       throw new Error('AI is overloaded right now — try again in a minute.');
     }
@@ -950,7 +941,7 @@
                     <Bot size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input type="text" className="w-full pl-10 pr-3.5 h-11 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-mono text-sm text-slate-700 dark:text-slate-200 focus:border-orange-400 focus:ring-1 focus:ring-orange-400/40 transition-all" placeholder="Model hint (optional)" value={draftModel} onChange={e => setDraftModel(e.target.value)}/>
                   </div>
-                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-2">{isPro ? `Pro — ${50} AI calls/day` : `Free — 3 AI calls/day · Upgrade for 50/day`}</p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-2">JIM routes to the fastest available Gemini model automatically.</p>
                 </div>
 
                 {/* Pro Licence */}
@@ -1106,8 +1097,7 @@
         onSave(json.address || addr, json.clientName || client, json.clientPhone || phone, tasks, json.dueDate || dueDate, json.clientEmail || email);
         showToast('JIM sorted it — check the details!', 'success');
       } catch (err) {
-        if (err.code === 'QUOTA_EXCEEDED') { onQuotaExceeded?.(); showToast(err.message, 'error'); }
-        else { console.error("AI Import Error:", err); showToast(`JIM hit a wall: ${err.message}`, 'error'); }
+        console.error("AI Import Error:", err); showToast(`JIM hit a wall: ${err.message}`, 'error');
       } finally { setIsImporting(false); }
     };
 
@@ -2576,8 +2566,7 @@ ${won.map(fmt).join('\n')}`;
         if (text) setLostAnalysis(text);
         else showToast('No analysis returned — try again.', 'error');
       } catch (err) {
-        if (err.code === 'QUOTA_EXCEEDED') { setShowUpgrade(true); showToast(err.message, 'error'); }
-        else showToast('Analysis failed: ' + err.message, 'error');
+        showToast('Analysis failed: ' + err.message, 'error');
       } finally {
         setIsAnalyzingLost(false);
       }
@@ -2822,8 +2811,7 @@ Return ONLY a valid JSON object with: "summary", "tasks" (array of {title, desc}
         setShowAIAssistModal(false);
         showToast(`JIM built your ${docType} — look it over!`, 'success');
       } catch (err) {
-        if (err.code === 'QUOTA_EXCEEDED') { setShowUpgrade(true); showToast(err.message, 'error'); }
-        else showToast('Failed to generate document: ' + err.message, 'error');
+        showToast('Failed to generate document: ' + err.message, 'error');
       }
       finally { setIsGenerating(false); }
     };
@@ -2878,8 +2866,7 @@ Return ONLY a valid JSON object with keys: "title", "time" (e.g. "2h 30m"), "rat
         setTaskData(prev => ({ ...prev, title: json.title||prev.title, time: json.time||prev.time, rate: json.rate||prev.rate, materialsCost: json.materialsCost||prev.materialsCost, materials: aiMaterials||prev.materials, tools: aiTools||prev.tools, desc: json.desc||prev.desc }));
         showToast('Suggestions applied!', 'success');
       } catch (err) {
-        if (err.code === 'QUOTA_EXCEEDED') { setShowUpgrade(true); showToast(err.message, 'error'); }
-        else showToast(`AI suggest failed: ${err.message}`, 'error');
+        showToast(`AI suggest failed: ${err.message}`, 'error');
       }
       finally { setIsAiSuggesting(false); }
     };
@@ -2901,8 +2888,7 @@ Return ONLY a valid JSON object with keys: "title", "time" (e.g. "2h 30m"), "rat
         setTaskData(p => ({...p, desc: text}));
         showToast('Text professionalized!', 'success');
       } catch (e) {
-        if (e.code === 'QUOTA_EXCEEDED') { setShowUpgrade(true); showToast(e.message, 'error'); }
-        else showToast("JIM couldn't polish that one", 'error');
+        showToast("JIM couldn't polish that one", 'error');
       } finally { setIsProfessionalizing(false); }
     };
 
@@ -2935,8 +2921,7 @@ Return ONLY a valid JSON object. Format: {"cost": 123.45, "items": "Hammer\\nNai
         setTaskData(prev => ({ ...prev, materialsCost: json.cost ? String(json.cost) : prev.materialsCost, materials: prev.materials ? prev.materials + (newItems ? '\n' + newItems : '') : newItems }));
         showToast('Receipt scanned successfully!', 'success');
       } catch (err) {
-        if (err.code === 'QUOTA_EXCEEDED') { setShowUpgrade(true); showToast(err.message, 'error'); }
-        else showToast(`Receipt scan failed: ${err.message}`, 'error');
+        showToast(`Receipt scan failed: ${err.message}`, 'error');
       }
       finally { setIsScanningReceipt(false); }
       e.target.value = '';
@@ -3733,7 +3718,7 @@ Return ONLY a valid JSON object. Format: {"cost": 123.45, "items": "Hammer\\nNai
         {/* Modals */}
         {showSettings && <SettingsModal geminiModel={geminiModel} extraTaxRate={extraTaxRate} countryCode={countryCode} isDarkMode={isDarkMode} toggleTheme={() => setIsDarkMode(!isDarkMode)} exportData={exportData} importData={importData} userTemplates={userTemplates} saveUserTemplates={saveUserTemplates} userMaterials={userMaterials} saveUserMaterials={saveUserMaterials} businessProfile={businessProfile} saveBusinessProfile={saveBusinessProfile} onSave={(m,t,cc) => { setGeminiModel(m); setExtraTaxRate(Number(t)); const c = cc||'AU'; localStorage.setItem('geminiModel',m); localStorage.setItem('joblog-extratax', t); localStorage.setItem('jim-country', c); _cc = c; setCountryCode(c); }} onClose={() => setShowSettings(false)} showToast={showToast} dbSize={dbSize} isPro={isUnlocked} onUnlockPro={handleUnlockSuccess}/>}
         {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} onUnlock={handleUnlockSuccess} showToast={showToast}/>}
-        {newJobModal && <NewJobModal type={newJobModal} user={user} geminiModel={geminiModel} onSave={handleCreateJob} onClose={() => setNewJobModal(null)} showToast={showToast} toggleVoice={toggleVoice} listeningField={listeningField} jobs={jobs} onQuotaExceeded={() => setShowUpgrade(true)}/>}
+        {newJobModal && <NewJobModal type={newJobModal} user={user} geminiModel={geminiModel} onSave={handleCreateJob} onClose={() => setNewJobModal(null)} showToast={showToast} toggleVoice={toggleVoice} listeningField={listeningField} jobs={jobs}/>}
 
         {showAIAssistModal && activeJob && <AIAssistModal onClose={() => setShowAIAssistModal(false)} onGenerate={handleGenerateDocument} isGenerating={isGenerating} docType={isCompletionDoc(activeJob) ? 'Completion Invoice' : 'Quotation'} toggleVoice={toggleVoice} listeningField={listeningField}/>}
         {rejectingJobId && <RejectSheet job={jobs.find(j => j.id === rejectingJobId)} onCancel={() => setRejectingJobId(null)} onConfirm={(reason, note) => { rejectJob(rejectingJobId, reason, note); setRejectingJobId(null); }}/>}

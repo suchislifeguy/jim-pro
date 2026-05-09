@@ -1,7 +1,3 @@
 name = "jim-pro-ai"
 main = "index.js"
 compatibility_date = "2025-01-01"
-
-[[kv_namespaces]]
-binding = "QUOTA"
-id = "e3f314c2170a446c9fc347ee86f98abd"

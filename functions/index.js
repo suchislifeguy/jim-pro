@@ -1,9 +1,6 @@
 // Cloudflare Worker — JIM AI Proxy
 
-const FREE_QUOTA = 3;
-const PRO_QUOTA  = 50;
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com';
-const FIREBASE_PROJECT_ID = 'jim-pro-app-6acf6';
 const FIREBASE_API_KEY = 'AIzaSyC8cLcvakuTxWP652GJ9eRDRW9_rnMVco8'; // public client key
 
 const ALLOWED_ORIGINS = [
@@ -49,34 +46,6 @@ async function verifyFirebaseToken(idToken) {
   return uid;
 }
 
-async function getIsPro(uid, idToken) {
-  try {
-    const res = await fetch(
-      `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/users/${uid}/data/profile`,
-      { headers: { 'Authorization': `Bearer ${idToken}` } }
-    );
-    if (!res.ok) return false;
-    const doc = await res.json();
-    return doc.fields?.payload?.mapValue?.fields?.isPro?.booleanValue === true;
-  } catch {
-    return false;
-  }
-}
-
-async function checkAndIncrementQuota(uid, isPro, env) {
-  const limit = isPro ? PRO_QUOTA : FREE_QUOTA;
-  const today = new Date().toISOString().slice(0, 10);
-  const key = `quota:${uid}:${today}`;
-
-  const existing = await env.QUOTA.get(key);
-  const count = existing ? parseInt(existing, 10) : 0;
-
-  if (count >= limit) return { allowed: false, remaining: 0 };
-
-  await env.QUOTA.put(key, String(count + 1), { expirationTtl: 172800 }); // auto-expire in 48h
-  return { allowed: true, remaining: limit - count - 1 };
-}
-
 function buildModelList(taskType, hint) {
   const base = taskType === 'heavy' ? [...HEAVY_MODELS] : [...LIGHT_MODELS];
   if (hint) return [...new Set([hint, ...base])];
@@ -115,8 +84,7 @@ async function handleAiGenerate(request, env, origin) {
   const idToken = authHeader.replace('Bearer ', '');
   if (!idToken) return jsonResponse({ error: 'Missing token' }, 401, origin);
 
-  let uid;
-  try { uid = await verifyFirebaseToken(idToken); }
+  try { await verifyFirebaseToken(idToken); }
   catch (err) { return jsonResponse({ error: err.message }, err.status || 401, origin); }
 
   let body;
@@ -128,18 +96,6 @@ async function handleAiGenerate(request, env, origin) {
     return jsonResponse({ error: 'Missing contents array' }, 400, origin);
   }
 
-  const isPro = await getIsPro(uid, idToken);
-  const quota = await checkAndIncrementQuota(uid, isPro, env);
-
-  if (!quota.allowed) {
-    return jsonResponse({
-      error: 'Daily AI quota exceeded',
-      code: 'QUOTA_EXCEEDED',
-      isPro,
-      limit: isPro ? PRO_QUOTA : FREE_QUOTA,
-    }, 429, origin);
-  }
-
   const models = buildModelList(taskType || 'light', userModelHint || null);
 
   try {
@@ -148,7 +104,7 @@ async function handleAiGenerate(request, env, origin) {
       { contents, generationConfig: generationConfig || {} },
       env.GEMINI_API_KEY
     );
-    return jsonResponse({ ...data, _meta: { remaining: quota.remaining, isPro } }, 200, origin);
+    return jsonResponse(data, 200, origin);
   } catch (err) {
     if (err.cascadeExhausted) {
       return jsonResponse({ error: 'AI overloaded — try again shortly', code: 'GEMINI_OVERLOADED' }, 503, origin);
