@@ -1,6 +1,7 @@
   import React, { useState, useEffect, useRef, Component, useMemo } from 'react';
   import ReloadPrompt from './components/ReloadPrompt';
-  import { syncWrite, coldStartSync, syncAll } from './sync';
+  import { syncWrite, coldStartSync, syncAll, deleteUserDocs } from './sync';
+  import { deleteUser } from 'firebase/auth';
   import { createPortal } from 'react-dom';
   import { get, set } from 'idb-keyval';
   import {
@@ -483,7 +484,8 @@
     </div>
   );
 
-  const UpgradeModal = ({ onClose, onUnlock, showToast }) => {
+  const UpgradeModal = ({ onClose, onUnlock, showToast, uid }) => {
+    const stripeLink = `${import.meta.env.VITE_STRIPE_LINK || '#'}?client_reference_id=${uid}`;
     return (
       <div className="fixed inset-0 z-[300] bg-slate-900/90 backdrop-blur-md flex items-end sm:items-center justify-center sm:p-4 overflow-y-auto">
         <div className="bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl w-full max-w-md p-6 sm:p-8 shadow-2xl border dark:border-slate-800 animate-slide-up sm:animate-none pb-safe text-center my-auto">
@@ -494,7 +496,7 @@
           <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl mb-6 border border-slate-200 dark:border-slate-700 text-left">
             <h3 className="font-black text-sm mb-1 text-slate-800 dark:text-white">Upgrade to JIM Pro</h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 font-medium">Unlock unlimited projects and AI-powered tools.</p>
-            <button className="w-full py-3 rounded-xl bg-orange-500 hover:bg-orange-400 text-white font-black text-sm transition-colors">Upgrade Now</button>
+            <a href={stripeLink} target="_blank" rel="noopener noreferrer" className="block text-center w-full py-3 rounded-xl bg-orange-500 hover:bg-orange-400 text-white font-black text-sm transition-colors">Upgrade Now</a>
           </div>
         </div>
       </div>
@@ -764,7 +766,7 @@
     );
   };
 
-  const SettingsModal = ({ geminiModel, userApiKey, extraTaxRate, countryCode, onSave, onClose, isDarkMode, toggleTheme, exportData, importData, userTemplates, saveUserTemplates, userMaterials, saveUserMaterials, businessProfile, saveBusinessProfile, showToast, dbSize, isPro, onUnlockPro }) => {
+  const SettingsModal = ({ geminiModel, userApiKey, extraTaxRate, countryCode, onSave, onClose, isDarkMode, toggleTheme, exportData, importData, userTemplates, saveUserTemplates, userMaterials, saveUserMaterials, businessProfile, saveBusinessProfile, showToast, dbSize, isPro, onUnlockPro, onDeleteAccount, uid }) => {
     const cc = getCC();
     const [draftModel, setDraftModel] = useState(geminiModel);
     const [draftApiKey, setDraftApiKey] = useState(userApiKey);
@@ -778,10 +780,6 @@
     const [activeTab, setActiveTab] = useState('business');
     const save = () => { onSave(draftModel, draftApiKey, draftExtraTax, draftCountry); onClose(); showToast('Settings Saved', 'success'); };
     const hasBiz = !!businessProfile?.name;
-
-    const handleLicenceUnlock = () => {
-      showToast('Subscription is now managed via account settings', 'info');
-    };
 
     const expiringCount = (businessProfile?.credentials || []).filter(c => isExpiringSoon(c.expiry) || isExpired(c.expiry)).length;
 
@@ -947,11 +945,8 @@
                     <div className="flex items-center gap-2 px-4 h-14 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/60 rounded-2xl text-emerald-700 dark:text-emerald-400 font-semibold text-sm"><CheckCircle2 size={16}/> Full version active</div>
                   ) : (
                     <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-3">
-                      <p className="text-xs text-slate-600 dark:text-slate-400 font-medium leading-relaxed">Purchase a 1-year licence or enter your existing key.</p>
-                      <div />
-                      <div className="flex items-center gap-2"><div className="flex-1 h-px bg-slate-200 dark:bg-slate-700"/><span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">or</span><div className="flex-1 h-px bg-slate-200 dark:bg-slate-700"/></div>
-                      <input type="text" className="w-full h-11 px-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl font-mono text-sm dark:text-white uppercase outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400/40 transition-all" placeholder="Licence key" value={licenceInput} onChange={e => setLicenceInput(e.target.value)}/>
-                      <button onClick={handleLicenceUnlock} className="w-full bg-orange-500 hover:bg-orange-400 text-white h-11 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors"><Lock size={15}/> Unlock</button>
+                      <p className="text-xs text-slate-600 dark:text-slate-400 font-medium leading-relaxed">Upgrade to Pro to unlock unlimited projects.</p>
+                      <a href={`${import.meta.env.VITE_STRIPE_LINK || '#'}?client_reference_id=${uid}`} target="_blank" rel="noopener noreferrer" className="w-full block text-center bg-orange-500 hover:bg-orange-400 text-white h-11 rounded-xl font-bold text-sm leading-[44px] transition-colors shadow-lg shadow-orange-500/20">Upgrade Now</a>
                     </div>
                   )}
                 </div>
@@ -965,8 +960,8 @@
                       <a href="/terms.html" target="_blank" className="flex-1 flex items-center justify-center gap-2 h-11 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">Terms</a>
                       <a href="mailto:support@jim-pro.app" className="flex-1 flex items-center justify-center gap-2 h-11 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">Support</a>
                     </div>
-                    <button onClick={() => { if(confirm("WARNING: This will permanently delete ALL jobs, templates, and settings. This cannot be undone. Are you sure?")) { localStorage.clear(); window.location.reload(); } }} className="w-full flex items-center justify-center gap-2 h-11 bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/40 rounded-xl text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-950/40 transition-colors">
-                      <Trash2 size={14}/> Delete All Data (Nuke)
+                    <button onClick={onDeleteAccount} className="w-full flex items-center justify-center gap-2 h-11 bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/40 rounded-xl text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-950/40 transition-colors">
+                      <Trash2 size={14}/> Delete Account & Data
                     </button>
                   </div>
                 </div>
@@ -2223,6 +2218,24 @@
   ];
 
   const App = ({ user }) => {
+    const handleDeleteAccount = async () => {
+      if (!confirm("WARNING: This will permanently delete your account, all cloud backups, and local data. This cannot be undone. Are you sure?")) return;
+      try {
+        const collections = [
+          { key: 'jobs' },
+          { key: 'templates' },
+          { key: 'materials' },
+          { key: 'settings' }
+        ];
+        await deleteUserDocs(user.uid, collections);
+        await deleteUser(user);
+        localStorage.clear();
+        window.location.reload();
+      } catch (err) {
+        showToast('Failed to delete account. Please try logging in again first.', 'error');
+        console.error("Account deletion error:", err);
+      }
+    };
     const [jobs, setJobs] = useState([]);
     const [userTemplates, setUserTemplates] = useState([]);
     const [userMaterials, setUserMaterials] = useState([]);
@@ -2878,7 +2891,13 @@ ${won.map(fmt).join('\n')}`;
           });
         };
 
-    const handleNewJobClick = (type) => { setNewJobModal(type); };
+    const handleNewJobClick = (type) => {
+      if (!isUnlocked && jobs.length >= 3) {
+        setShowUpgrade(true);
+        return;
+      }
+      setNewJobModal(type);
+    };
     const handleUnlockSuccess = () => { setIsUnlocked(true); };
 
     const handleGenerateDocument = async (customPrompt) => {
@@ -3837,8 +3856,8 @@ Return ONLY a valid JSON object. Format: {"cost": 123.45, "items": "Hammer\\nNai
         {jimLiveOpen && <JimLivePanel status={jimLiveStatus} transcript={jimLiveTranscript} onClose={stopJimLive} onMicTap={handleMicTap}/>}
 
         {/* Modals */}
-        {showSettings && <SettingsModal geminiModel={geminiModel} userApiKey={userApiKey} extraTaxRate={extraTaxRate} countryCode={countryCode} isDarkMode={isDarkMode} toggleTheme={() => setIsDarkMode(!isDarkMode)} exportData={exportData} importData={importData} userTemplates={userTemplates} saveUserTemplates={saveUserTemplates} userMaterials={userMaterials} saveUserMaterials={saveUserMaterials} businessProfile={businessProfile} saveBusinessProfile={saveBusinessProfile} onSave={(m,k,t,cc) => { setGeminiModel(m); setUserApiKey(k); setExtraTaxRate(Number(t)); const c = cc||'AU'; localStorage.setItem('geminiModel',m); localStorage.setItem('userGeminiApiKey',k); localStorage.setItem('joblog-extratax', t); localStorage.setItem('jim-country', c); _cc = c; setCountryCode(c); }} onClose={() => setShowSettings(false)} showToast={showToast} dbSize={dbSize} isPro={isUnlocked} onUnlockPro={handleUnlockSuccess}/>}
-        {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} onUnlock={handleUnlockSuccess} showToast={showToast}/>}
+        {showSettings && <SettingsModal geminiModel={geminiModel} userApiKey={userApiKey} extraTaxRate={extraTaxRate} countryCode={countryCode} isDarkMode={isDarkMode} toggleTheme={() => setIsDarkMode(!isDarkMode)} exportData={exportData} importData={importData} userTemplates={userTemplates} saveUserTemplates={saveUserTemplates} userMaterials={userMaterials} saveUserMaterials={saveUserMaterials} businessProfile={businessProfile} saveBusinessProfile={saveBusinessProfile} onSave={(m,k,t,cc) => { setGeminiModel(m); setUserApiKey(k); setExtraTaxRate(Number(t)); const c = cc||'AU'; localStorage.setItem('geminiModel',m); localStorage.setItem('userGeminiApiKey',k); localStorage.setItem('joblog-extratax', t); localStorage.setItem('jim-country', c); _cc = c; setCountryCode(c); }} onClose={() => setShowSettings(false)} showToast={showToast} dbSize={dbSize} isPro={isUnlocked} onUnlockPro={handleUnlockSuccess} onDeleteAccount={handleDeleteAccount} uid={user?.uid}/>}
+        {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} onUnlock={handleUnlockSuccess} showToast={showToast} uid={user?.uid}/>}
         {newJobModal && <NewJobModal type={newJobModal} user={user} geminiModel={geminiModel} userApiKey={userApiKey} onSave={handleCreateJob} onClose={() => setNewJobModal(null)} showToast={showToast} toggleVoice={toggleVoice} listeningField={listeningField} jobs={jobs}/>}
 
         {showAIAssistModal && activeJob && <AIAssistModal onClose={() => setShowAIAssistModal(false)} onGenerate={handleGenerateDocument} isGenerating={isGenerating} docType={isCompletionDoc(activeJob) ? 'Completion Invoice' : 'Quotation'} toggleVoice={toggleVoice} listeningField={listeningField}/>}

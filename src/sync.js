@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { get, set } from 'idb-keyval';
 import { db } from './firebase';
 
@@ -55,4 +55,15 @@ export async function syncAll(uid, collections) {
       // ignore
     }
   }
+}
+
+export async function deleteUserDocs(uid, collections) {
+  for (const { key } of collections) {
+    try {
+      await deleteDoc(ref(uid, key));
+    } catch {}
+  }
+  try {
+    await deleteDoc(doc(db, 'users', uid));
+  } catch {}
 }
