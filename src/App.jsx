@@ -68,7 +68,7 @@
         `}</style>
 
         <g className="jim-body">
-        <!-- LEFT ARM + CLIPBOARD -->
+        {/* LEFT ARM + CLIPBOARD */}
         <g className="jim-arm-left">
         <polygon points="19,44 12,49 10,57 18,53" fill="#eab308" />
         <polygon points="19,44 12,49 14,51 19,48" fill="#ca8a04" opacity="0.5" />
@@ -80,18 +80,18 @@
         <rect x="5" y="56.5" width="7.5" height="1" rx="0.5" fill="#94a3b8" />
         <rect x="5" y="59" width="7.5" height="1" rx="0.5" fill="#94a3b8" />
         <rect x="5" y="61.5" width="5" height="1" rx="0.5" fill="#cbd5e1" />
-        <!-- Only green tick – no circle, no glow -->
+        {/* green tick */}
         <path className="tick-draw" d="M6.2,66.5 L8.2,68.8 L12,64.5" stroke="#22c55e" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
         <rect x="13" y="61" width="6.5" height="5.5" rx="2" fill="#f5cba0" />
         <path d="M14,64 L12.5,61.5" stroke="#d4956a" strokeWidth="1.3" strokeLinecap="round" />
         </g>
 
-        <!-- LEGS -->
+        {/* LEGS */}
         <path d="M18,63 L42,63 L45,74 L33,74 L31,67 L29,74 L15,74 Z" fill="#1e293b" />
         <line x1="22" y1="63" x2="20" y2="73" stroke="#0f172a" strokeWidth="1.5" />
         <line x1="38" y1="63" x2="40" y2="73" stroke="#0f172a" strokeWidth="1.5" />
 
-        <!-- BOOTS -->
+        {/* BOOTS */}
         <g className="jim-foot-left">
         <path d="M13.5,73 L27.5,73 Q29.5,77 29.5,78 L13.5,78 Z" fill="#5a3a1a" />
         <path d="M13.5,73 L20,73 Q21,77 20,78 L13.5,78 Z" fill="#3e2610" />
@@ -103,7 +103,7 @@
         <rect x="32.5" y="77.5" width="16" height="2.5" rx="0.8" fill="#1a0f05" />
         </g>
 
-        <!-- TORSO -->
+        {/* TORSO */}
         <path d="M19,43 Q30,41.5 41,43 L39,62 L21,62 Z" fill="#0a1120" />
         <path d="M15,45 C20,43 40,43 45,45 L42.5,61 L17.5,61 Z" fill="#eab308" />
         <polygon points="24.5,44 35.5,44 30,52.5" fill="#0a1120" />
@@ -113,7 +113,7 @@
         <rect x="27.5" y="60.8" width="5" height="5" rx="1" fill="#cbd5e1" />
         <rect x="28" y="61.3" width="4" height="4" rx="0.5" fill="#94a3b8" />
 
-        <!-- RIGHT ARM -->
+        {/* RIGHT ARM */}
         <g className="jim-arm-right">
         <polygon points="41,44 48.5,46 49.5,56 41.2,52" fill="#eab308" />
         <polygon points="41,44 48.5,46 46,48 41.5,46" fill="#ca8a04" opacity="0.45" />
@@ -122,14 +122,14 @@
         <path d="M39.5,64.5 Q43.5,68.5 46,65.5" stroke="#d4956a" strokeWidth="1.1" fill="none" strokeLinecap="round" />
         </g>
 
-        <!-- NECK -->
+        {/* NECK */}
         <rect x="26" y="39" width="8" height="6" fill="#f5cba0" />
 
-        <!-- HEAD + HARD HAT (round head) -->
+        {/* HEAD + HARD HAT */}
         <g className="jim-head">
         <ellipse cx="17.5" cy="30" rx="2.4" ry="3.2" fill="#f5cba0" />
         <ellipse cx="42.5" cy="30" rx="2.4" ry="3.2" fill="#f5cba0" />
-        <!-- ROUND head (circle instead of oval) -->
+        {/* ROUND head */}
         <circle cx="30" cy="28" r="14.5" fill="#fcd9b6" />
 
         <path d="M19.5,20.8 L26,19.5" stroke="#2d1a0a" strokeWidth="1.8" strokeLinecap="round" />
@@ -149,16 +149,16 @@
 
         <path d="M30,25.5 L29.5,32 Q29.5,33.5 31.5,33" stroke="#c4885a" strokeWidth="0.9" strokeLinecap="round" strokeLinejoin="round" fill="none" />
 
-        <!-- Natural smirk (smaller, less wide) -->
-        <path d="M24,39 Q30,41.5 36,38.8" stroke="#2d1a0a" strokeWidth="1.1" fill="none" strokeLinecap="round" />
+        {/* Natural smirk */}
+        <path d="M24,39 Q30,41.5 36,38.8" stroke="#2d1a0a" strokeWidth="1.2" fill="none" strokeLinecap="round" />
 
-        <!-- Single mustache (no double lines) -->
+        {/* Single mustache (no double lines) */}
         <g className="jim-mustache">
         <path d="M21,36.5 Q26,33 30,35.5" stroke="#2d1a0a" strokeWidth="2" fill="none" strokeLinecap="round" />
         <path d="M30,35.5 Q34,33 39,36.5" stroke="#2d1a0a" strokeWidth="2" fill="none" strokeLinecap="round" />
         </g>
 
-        <!-- Hard hat -->
+        {/* Hard hat */}
         <path d="M15,19 C15,4 45,4 45,19 Z" fill="#f97316" />
         <path d="M26.5,19 L27.5,9 Q30,7 32.5,9 L33.5,19 Z" fill="#ea580c" opacity="0.25" />
         <path d="M19,19 L20,12 Q21.5,10.5 23,12 L23,19 Z" fill="#ea580c" opacity="0.18" />
