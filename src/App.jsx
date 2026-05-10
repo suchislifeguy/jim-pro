@@ -21,137 +21,195 @@
     const isThink = s === 'thinking';
     return (
       <div className={wrapCls} style={{ width: size, height: h, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-        <svg viewBox="0 0 60 80" width={size} height={h} overflow="visible">
-            <style>{`
-            .jim-body { animation: bounce 0.6s ease-in-out infinite alternate; }
-            .jim-head { animation: nod 1.2s ease-in-out infinite; transform-origin: 30px 38px; }
-            .jim-arm-left { animation: swingLeft 1.5s ease-in-out infinite; transform-origin: 15px 48px; }
-            .jim-arm-right { animation: swingRight 1.5s ease-in-out infinite 0.75s; transform-origin: 44px 46px; }
-            .jim-foot-left { animation: tapLeft 0.8s ease-in-out infinite; }
-            .jim-foot-right { animation: tapRight 0.8s ease-in-out infinite 0.4s; }
-            .jim-mustache { animation: twitch 3s ease-in-out infinite 1s; transform-origin: 30px 37px; }
+      <svg viewBox="0 0 60 90" width={size} height={h} overflow="visible">
+      <style>{`
+        .jim-body { animation: bounce 0.6s ease-in-out infinite alternate; }
+        .jim-head { animation: nod 1.2s ease-in-out infinite; transform-origin: 30px 26px; }
+        .jim-arm-left { animation: swingLeft 1.5s ease-in-out infinite; transform-origin: 15px 48px; }
+        .jim-arm-right { animation: swingRight 1.5s ease-in-out infinite 0.75s; transform-origin: 44px 46px; }
+        .jim-foot-left { animation: tapLeft 0.8s ease-in-out infinite; transform-origin: 20px 73px; }
+        .jim-foot-right { animation: tapRight 0.8s ease-in-out infinite 0.4s; transform-origin: 40px 73px; }
+        .jim-mustache { animation: twitch 3s ease-in-out infinite 1s; transform-origin: 30px 40px; }
+        .tick-draw { animation: drawTick 0.6s ease-out 1.2s both; stroke-dasharray: 12; stroke-dashoffset: 12; }
+        .tick-pop { animation: popTick 0.3s ease-out 1.8s both; transform-origin: 9px 66px; transform: scale(0); }
+        .tick-glow { animation: glowPulse 1.5s ease-in-out 2.1s infinite; }
 
-            @keyframes bounce {
-              0% { transform: translateY(0); }
-              100% { transform: translateY(-1px); }
-            }
-            @keyframes nod {
-              0%, 100% { transform: rotate(0deg); }
-              30% { transform: rotate(-4deg); }
-              70% { transform: rotate(3deg); }
-            }
-            @keyframes swingLeft {
-              0%, 100% { transform: rotate(0deg); }
-              50% { transform: rotate(10deg); }
-            }
-            @keyframes swingRight {
-              0%, 100% { transform: rotate(0deg); }
-              50% { transform: rotate(10deg); }
-            }
-            @keyframes tapLeft {
-              0%, 100% { transform: rotate(0deg); }
-              50% { transform: rotate(6deg); }
-            }
-            @keyframes tapRight {
-              0%, 100% { transform: rotate(0deg); }
-              50% { transform: rotate(-6deg); }
-            }
-            @keyframes twitch {
-              0%, 100% { transform: translateY(0); }
-              5% { transform: translateY(1.5px); }
-              10% { transform: translateY(0); }
-            }
-          `}</style>
+        @keyframes bounce {
+          0% { transform: translateY(0); }
+          100% { transform: translateY(-1px); }
+        }
+        @keyframes nod {
+          0%, 100% { transform: rotate(0deg); }
+          30% { transform: rotate(-4deg); }
+          70% { transform: rotate(3deg); }
+        }
+        @keyframes swingLeft {
+          0%, 100% { transform: rotate(0deg); }
+          50% { transform: rotate(10deg); }
+        }
+        @keyframes swingRight {
+          0%, 100% { transform: rotate(0deg); }
+          50% { transform: rotate(10deg); }
+        }
+        @keyframes tapLeft {
+          0%, 100% { transform: rotate(0deg); }
+          50% { transform: rotate(6deg); }
+        }
+        @keyframes tapRight {
+          0%, 100% { transform: rotate(0deg); }
+          50% { transform: rotate(-6deg); }
+        }
+        @keyframes twitch {
+          0%, 100% { transform: translateY(0); }
+          5% { transform: translateY(1.5px); }
+          10% { transform: translateY(0); }
+        }
+        @keyframes drawTick {
+          to { stroke-dashoffset: 0; }
+        }
+        @keyframes popTick {
+          0% { transform: scale(0); }
+          70% { transform: scale(1.3); }
+          100% { transform: scale(1); }
+        }
+        @keyframes glowPulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.4; }
+        }
+        `}</style>
 
-          <g className="jim-body">
-            {/* ── left arm (behind torso) – same thickness as legs ── */}
-            <g className="jim-arm-left">
-              <line x1="15" y1="48" x2="5" y2="59" stroke="#fbbf24" strokeWidth="6" strokeLinecap="round"/>
-              <line x1="5" y1="59" x2="8" y2="69" stroke="#fcd9b6" strokeWidth="6" strokeLinecap="round"/>
-              {/* Hand */}
-              <circle cx="8" cy="70" r="3.5" fill="#fcd9b6"/>
-            </g>
+        <g className="jim-body">
 
-            {/* clipboard – fixed to left hand at (8, 70) */}
-            <g transform="translate(-5, 54)">
-              <rect x="0" y="0" width="12" height="17" rx="1.5" fill="#f8fafc" stroke="#94a3b8" strokeWidth="0.8"/>
-              <rect x="3" y="-2" width="5" height="3.5" rx="1" fill="#64748b"/>
-              <rect x="1.5" y="4" width="8.5" height="1" rx="0.5" fill="#cbd5e1"/>
-              <rect x="1.5" y="7.5" width="8.5" height="1" rx="0.5" fill="#cbd5e1"/>
-              <rect x="1.5" y="11" width="8.5" height="1" rx="0.5" fill="#cbd5e1"/>
-              <rect x="1.5" y="14.5" width="5" height="1" rx="0.5" fill="#e2e8f0"/>
-            </g>
+        {/* ── LEFT ARM + CLIPBOARD (behind torso) ── */}
+        <g className="jim-arm-left">
+        {/* Sleeve */}
+        <polygon points="19,44 12,49 10,57 18,53" fill="#eab308" />
+        <polygon points="19,44 12,49 14,51 19,48" fill="#ca8a04" opacity="0.5" />
+        {/* Forearm */}
+        <polygon points="10,56 18,52 19,63 14,65" fill="#eeb482" />
+        {/* Clipboard base */}
+        <rect x="2" y="52" width="14" height="20" rx="1.5" fill="#8b5a2b" />
+        {/* Paper */}
+        <rect x="3.5" y="54" width="11" height="17" rx="0.5" fill="#f8fafc" />
+        {/* Clip */}
+        <rect x="5.5" y="51" width="7" height="4" rx="1" fill="#475569" />
+        <circle cx="9" cy="53" r="1" fill="#1e293b" />
+        {/* Lines */}
+        <rect x="5.5" y="56.5" width="7.5" height="1" rx="0.5" fill="#cbd5e1" />
+        <rect x="5.5" y="59" width="7.5" height="1" rx="0.5" fill="#cbd5e1" />
+        <rect x="5.5" y="61.5" width="5.5" height="1" rx="0.5" fill="#e2e8f0" />
+        {/* Green tick — pops in then pulses */}
+        <g className="tick-pop">
+        <circle cx="9" cy="66" r="4" fill="#22c55e" />
+        <path className="tick-draw" d="M6.5,66 L8.2,68 L11.5,63.5" stroke="white" strokeWidth="1.4" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        </g>
+        <circle className="tick-glow" cx="9" cy="66" r="4.8" fill="none" stroke="#22c55e" strokeWidth="0.8" opacity="0" />
+        {/* Hand */}
+        <rect x="13" y="61" width="6" height="5" rx="2" fill="#eeb482" />
+        <path d="M14,64 L12,61" stroke="#d99a6c" strokeWidth="1.5" strokeLinecap="round" />
+        </g>
 
-            {/* ── legs – 6px thick ── */}
-            <rect x="22" y="63" width="6" height="12" rx="2" fill="#334155"/>
-            <rect x="32" y="63" width="6" height="12" rx="2" fill="#334155"/>
+        {/* ── LEGS ── */}
+        <path d="M18,63 L42,63 L45,74 L33,74 L31,67 L29,74 L15,74 Z" fill="#1e293b" />
+        <line x1="22" y1="63" x2="20" y2="73" stroke="#0f172a" strokeWidth="1.5" />
+        <line x1="38" y1="63" x2="40" y2="73" stroke="#0f172a" strokeWidth="1.5" />
 
-            {/* ── boots ── */}
-            <g className="jim-foot-left" style={{ transformOrigin: '22px 73px' }}>
-              <rect x="19" y="73" width="11" height="7" rx="3" fill="#1e293b"/>
-              <rect x="21" y="74.5" width="5" height="1.5" rx="0.5" fill="#475569" opacity="0.5"/>
-            </g>
-            <g className="jim-foot-right" style={{ transformOrigin: '35px 73px' }}>
-              <rect x="32" y="73" width="11" height="7" rx="3" fill="#1e293b"/>
-              <rect x="34" y="74.5" width="5" height="1.5" rx="0.5" fill="#475569" opacity="0.5"/>
-            </g>
+        {/* ── BOOTS ── */}
+        <g className="jim-foot-left">
+        <path d="M14,73 L27,73 Q29,77 29,78 L14,78 Z" fill="#5f3a18" />
+        <path d="M14,73 L20,73 Q21,77 20,78 L14,78 Z" fill="#4a2e12" />
+        <rect x="14" y="78" width="15" height="2.5" rx="0.5" fill="#111111" />
+        </g>
+        <g className="jim-foot-right">
+        <path d="M33,73 L46,73 Q48,77 48,78 L33,78 Z" fill="#5f3a18" />
+        <path d="M40,73 L46,73 Q48,77 48,78 L41,78 Z" fill="#4a2e12" />
+        <rect x="33" y="78" width="15" height="2.5" rx="0.5" fill="#111111" />
+        </g>
 
-            {/* ── torso: hi-vis vest + dark shirt centre ── */}
-            <polygon points="13,46 47,46 44,64 16,64" fill="#fbbf24"/>
-            <polygon points="25,46 35,46 34,64 26,64" fill="#1e3a5f"/>
-            <polygon points="27,46 30,53 33,46" fill="#1e3a5f"/>
-            <rect x="13" y="55" width="11" height="2.5" rx="0.5" fill="#f1f5f9" opacity="0.85"/>
-            <rect x="36" y="55" width="11" height="2.5" rx="0.5" fill="#f1f5f9" opacity="0.85"/>
+        {/* ── TORSO ── */}
+        {/* Dark undershirt */}
+        <path d="M19,43 Q30,42 41,43 L39,62 L21,62 Z" fill="#0f172a" />
+        {/* Hi-vis vest */}
+        <path d="M15,45 C20,43 40,43 45,45 L42,61 L18,61 Z" fill="#eab308" />
+        {/* V-cut */}
+        <polygon points="25,44 35,44 30,53" fill="#0f172a" />
+        {/* Reflective band */}
+        <path d="M17,55 Q30,57.5 43,55 L42.5,58.5 Q30,61 17.5,58.5 Z" fill="#f1f5f9" />
+        {/* Reflective strips */}
+        <path d="M22,44 L22,55.5 M38,44 L38,55.5" stroke="#f1f5f9" strokeWidth="4" />
+        {/* Belt */}
+        <rect x="18" y="61" width="24" height="3" fill="#020617" />
+        <rect x="28" y="60.5" width="4" height="4" rx="0.5" fill="#cbd5e1" />
+        <rect x="28.5" y="61" width="3" height="3" fill="#94a3b8" />
 
-            {/* ── right arm – 6px thick, same as legs ── */}
-            <g className="jim-arm-right">
-              <line x1="44" y1="46" x2="53" y2="58" stroke="#fbbf24" strokeWidth="6" strokeLinecap="round"/>
-              <line x1="53" y1="58" x2="54" y2="68" stroke="#fcd9b6" strokeWidth="6" strokeLinecap="round"/>
-              {/* Hand */}
-              <circle cx="54" cy="70" r="3.5" fill="#fcd9b6"/>
-            </g>
+        {/* ── RIGHT ARM ── */}
+        <g className="jim-arm-right">
+        {/* Sleeve */}
+        <polygon points="41,44 48,46 49,56 41,52" fill="#eab308" />
+        <polygon points="41,44 48,46 46,48 41,46" fill="#ca8a04" opacity="0.5" />
+        {/* Forearm */}
+        <polygon points="41,51 49,55 46,65 40,63" fill="#eeb482" />
+        {/* Hand */}
+        <rect x="39" y="62" width="7" height="6" rx="2.5" fill="#eeb482" />
+        <path d="M39.5,64 Q43,68 45.5,65" stroke="#d99a6c" strokeWidth="1" fill="none" />
+        </g>
 
-            {/* ── neck ── */}
-            <rect x="26" y="40" width="8" height="8" rx="3" fill="#fcd9b6"/>
+        {/* ── NECK (in body group) ── */}
+        <rect x="26" y="39" width="8" height="6" fill="#eeb482" />
 
-            {/* ── head ── */}
-            <g className="jim-head">
-              <circle cx="30" cy="30" r="12" fill="#fcd9b6"/>
-              <ellipse cx="30" cy="39" rx="7" ry="3" fill="#f9b885" opacity="0.3"/>
+        {/* ── HEAD + HARD HAT ── */}
+        <g className="jim-head">
 
-              {/* ── face: brows ── */}
-              <path d="M21.5 25 Q25 23 28.5 25" stroke="#374151" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
-              <path d="M31.5 25 Q35 23 38.5 25" stroke="#374151" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
+        {/* Ears */}
+        <ellipse cx="18" cy="30" rx="2.2" ry="3" fill="#eeb482" />
+        <ellipse cx="42" cy="30" rx="2.2" ry="3" fill="#eeb482" />
+        <ellipse cx="18" cy="30" rx="1.1" ry="1.8" fill="#d99a6c" opacity="0.3" />
+        <ellipse cx="42" cy="30" rx="1.1" ry="1.8" fill="#d99a6c" opacity="0.3" />
 
-              {/* ── eyes (green, no pulse) ── */}
-              <ellipse cx="25" cy="29" rx="2.3" ry="2.8" fill="#15803d"/>
-              <ellipse cx="35" cy="29" rx="2.3" ry="2.8" fill="#15803d"/>
-              <circle cx="26" cy="27.5" r="1" fill="white"/>
-              <circle cx="36" cy="27.5" r="1" fill="white"/>
+        {/* Head shape */}
+        <path d="M18,29 C18,41 22,45 30,45 C38,45 42,41 42,29 L42,18 C42,9 18,9 18,18 Z" fill="#fcd9b6" />
 
-              {/* ── nose ── */}
-              <ellipse cx="30" cy="33.5" rx="1.2" ry="0.8" fill="#e8956d" opacity="0.5"/>
+        {/* Brows */}
+        <path d="M20,21 L26,19.5" stroke="#2d1a0a" strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M34,19.5 L40,21" stroke="#2d1a0a" strokeWidth="1.5" strokeLinecap="round" />
 
-              {/* ── mouth ── */}
-              <path d="M26 37 Q30 40.5 34 37" stroke="#9a6b4b" strokeWidth="1.4" fill="none" strokeLinecap="round"/>
+        {/* Eyes — half-lidded */}
+        <ellipse cx="25" cy="27" rx="3.8" ry="3.2" fill="white" />
+        <ellipse cx="35" cy="27" rx="3.8" ry="3.2" fill="white" />
+        <circle cx="25" cy="27.3" r="2.2" fill="#1e5c3a" />
+        <circle cx="35" cy="27.3" r="2.2" fill="#1e5c3a" />
+        <circle cx="25" cy="27.3" r="1.1" fill="#111" />
+        <circle cx="35" cy="27.3" r="1.1" fill="#111" />
+        <circle cx="25.8" cy="26.4" r="0.6" fill="white" />
+        <circle cx="35.8" cy="26.4" r="0.6" fill="white" />
+        {/* Lid lines */}
+        <path d="M21.2,25.2 Q25,23.8 28.8,25.2" stroke="#2d1a0a" strokeWidth="0.8" fill="none" strokeLinecap="round" />
+        <path d="M31.2,25.2 Q35,23.8 38.8,25.2" stroke="#2d1a0a" strokeWidth="0.8" fill="none" strokeLinecap="round" />
 
-              {/* ── mustache ── */}
-              <g className="jim-mustache">
-                <path d="M23 37.5 Q27 34 30 37" stroke="#374151" strokeWidth="1.8" fill="none" strokeLinecap="round"/>
-                <path d="M30 37 Q33 34 37 37.5" stroke="#374151" strokeWidth="1.8" fill="none" strokeLinecap="round"/>
-              </g>
-            </g>
+        {/* Nose */}
+        <path d="M30,25.5 L29.5,32 Q29.5,33.5 31.5,33" stroke="#d99a6c" strokeWidth="0.9" strokeLinecap="round" strokeLinejoin="round" fill="none" />
 
-            {/* ── hard hat ── */}
-            <g>
-              <path d="M16 20 Q16 8 24 5 L36 5 Q44 8 44 20 Z" fill="#f97316"/>
-              <path d="M22 18 Q22 11 28 8 Q26 12 25 18 Z" fill="#fb923c" opacity="0.5"/>
-              <path d="M27 18 L27 7 L33 7 L33 18" fill="#ea580c" opacity="0.4"/>
-              <path d="M12 20 Q10 20 10 22 L14 23 L46 23 L50 22 Q50 20 48 20 Z" fill="#ea580c"/>
-              <path d="M14 20.5 L46 20.5 L48 21.5 L12 21.5 Z" fill="#f97316" opacity="0.5"/>
-              <rect x="13" y="23" width="34" height="1.5" rx="0.5" fill="#c2410c" opacity="0.3"/>
-            </g>
-          </g>
+        {/* Smirk */}
+        <path d="M23,38.5 Q30,42 37,38.5" stroke="#2d1a0a" strokeWidth="1.1" fill="none" strokeLinecap="round" />
+
+        {/* Mustache */}
+        <g className="jim-mustache">
+        <path d="M22,36 Q26,33 30,35.5" stroke="#2d1a0a" strokeWidth="1.8" fill="none" strokeLinecap="round" />
+        <path d="M30,35.5 Q34,33 38,36" stroke="#2d1a0a" strokeWidth="1.8" fill="none" strokeLinecap="round" />
+        </g>
+
+        {/* Hard hat dome */}
+        <path d="M15,19 C15,4 45,4 45,19 Z" fill="#f97316" />
+        <path d="M27,19 L28,10 Q30,8 32,10 L33,19 Z" fill="#ea580c" opacity="0.25" />
+        <path d="M19,19 L20,12 Q21.5,10.5 23,12 L23,19 Z" fill="#ea580c" opacity="0.18" />
+        <path d="M41,19 L40,12 Q38.5,10.5 37,12 L37,19 Z" fill="#ea580c" opacity="0.18" />
+        <path d="M19,18 C18.5,10 22,7 22,7 C22,7 20,11 20.5,18 Z" fill="white" opacity="0.2" />
+        {/* Brim */}
+        <path d="M11,19 Q30,15 49,19 Q51,20 50,22 L10,22 Q9,20 11,19 Z" fill="#ea580c" />
+        <path d="M11,19 Q30,15 49,19 Q50.5,20 50,20.8 Q30,17 10,20.8 Q9.5,20 11,19 Z" fill="#fb923c" opacity="0.5" />
+
+        </g>
+        </g>
         </svg>
       </div>
     );
