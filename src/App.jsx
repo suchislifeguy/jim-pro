@@ -21,106 +21,46 @@
     const isThink = s === 'thinking';
     return (
       <div className={wrapCls} style={{ width: size, height: h, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 90" width="100%" height="100%" overflow="visible">
+      <svg viewBox="0 0 60 90" width={size} height={h} overflow="visible">
       <style>{`
-        .jim-body {
-          animation: bounce 0.4s ease-in-out infinite alternate, glitch 1.5s steps(3) infinite;
-          transform-origin: 30px 60px;
-        }
-        .jim-head {
-          animation: nod 0.8s ease-in-out infinite;
-          transform-origin: 30px 28px;
-        }
-        .jim-hat {
-          animation: nod 0.8s ease-in-out infinite;
-          transform-origin: 30px 28px;
-        }
-        .jim-arm-left {
-          animation: swingLeft 0.9s ease-in-out infinite;
-          transform-origin: 15px 48px;
-        }
-        .jim-arm-right {
-          animation: swingRight 1s ease-in-out infinite 0.5s;
-          transform-origin: 44px 46px;
-        }
-        .jim-foot-left {
-          animation: tapRight 0.4s ease-in-out infinite 0.2s;
-          transform-origin: 38px 73px;
-        }
-        .jim-foot-right {
-          animation: tapRight 0.4s ease-in-out infinite 0.2s;
-          transform-origin: 38px 73px;
-        }
-        .jim-eyes {
-          animation: eyeGlitch 2.5s infinite;
-          transform-origin: 24px 27px;
-        }
-        .jim-mustache {
-          animation: mustacheWiggle 0.5s ease-in-out infinite;
-          transform-origin: 30px 36px;
-        }
-        .jim-clipboard {
-          animation: clipboardFlip 0.8s ease-in-out infinite;
-          transform-origin: 12px 62px;
-        }
-        .tick-draw {
-          animation: drawTick 1s ease-out 1.2s both;
-          stroke-dasharray: 12;
-          stroke-dashoffset: 12;
-        }
+        .jim-body { animation: bounce 0.6s ease-in-out infinite alternate; }
+        .jim-head { animation: nod 1.2s ease-in-out infinite; transform-origin: 30px 26px; }
+        .jim-arm-left { animation: swingLeft 1.5s ease-in-out infinite; transform-origin: 15px 48px; }
+        .jim-arm-right { animation: swingRight 1.5s ease-in-out infinite 0.75s; transform-origin: 44px 46px; }
+        .jim-foot-left { animation: tapLeft 0.8s ease-in-out infinite; transform-origin: 20px 73px; }
+        .jim-foot-right { animation: tapRight 0.8s ease-in-out infinite 0.4s; transform-origin: 40px 73px; }
+        .jim-mustache { animation: twitch 3s ease-in-out infinite 1s; transform-origin: 30px 38px; }
+        .tick-draw { animation: drawTick 0.5s ease-out 1.2s both; stroke-dasharray: 12; stroke-dashoffset: 12; }
 
         @keyframes bounce {
-          0% { transform: translateY(0) scaleY(1); }
-          100% { transform: translateY(-1px) scaleY(1.05); }
-        }
-        @keyframes glitch {
-          0%, 100% { transform: translate(0); }
-          10% { transform: translate(-3px, 1px); }
-          30% { transform: translate(3px, -1px); }
-          50% { transform: translate(-1px, -2px); }
-          70% { transform: translate(2px, 2px); }
-          90% { transform: translate(1px, -1px); }
+          0% { transform: translateY(0); }
+          100% { transform: translateY(-2px); }
         }
         @keyframes nod {
           0%, 100% { transform: rotate(0deg); }
-          25% { transform: rotate(-15deg); }
-          50% { transform: rotate(12deg); }
-          75% { transform: rotate(-5deg); }
-        }
-        @keyframes spin {
-          100% { transform: rotate(360deg); }
+          30% { transform: rotate(-4deg); }
+          70% { transform: rotate(3deg); }
         }
         @keyframes swingLeft {
           0%, 100% { transform: rotate(0deg); }
-          25% { transform: rotate(-30deg); }
-          50% { transform: rotate(40deg); }
-          75% { transform: rotate(-10deg); }
+          50% { transform: rotate(12deg); }
         }
         @keyframes swingRight {
           0%, 100% { transform: rotate(0deg); }
-          25% { transform: rotate(25deg); }
-          50% { transform: rotate(-35deg); }
-          75% { transform: rotate(10deg); }
+          50% { transform: rotate(10deg); }
         }
         @keyframes tapLeft {
           0%, 100% { transform: rotate(0deg); }
-          50% { transform: rotate(-35deg); }
+          50% { transform: rotate(8deg); }
         }
         @keyframes tapRight {
           0%, 100% { transform: rotate(0deg); }
-          50% { transform: rotate(25deg); }
+          50% { transform: rotate(-8deg); }
         }
-        @keyframes eyeGlitch {
-          0%, 95%, 100% { transform: scaleY(1); }
-          97% { transform: scaleY(0.05) translateY(12px); }
-        }
-        @keyframes mustacheWiggle {
-          0%, 100% { transform: rotate(0deg); }
-          50% { transform: rotate(20deg); }
-        }
-        @keyframes clipboardFlip {
-          0%, 100% { transform: scaleX(1); }
-          50% { transform: scaleX(-1); }
+        @keyframes twitch {
+          0%, 100% { transform: translateY(0); }
+          5% { transform: translateY(1.5px); }
+          10% { transform: translateY(0); }
         }
         @keyframes drawTick {
           to { stroke-dashoffset: 0; }
