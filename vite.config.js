@@ -15,6 +15,9 @@ export default defineConfig({
                                 short_name: 'JIM',
                                 description: 'Trade management for solo tradies',
                                 theme_color: '#ffffff',
+                                background_color: '#0f172a',
+                                display: 'standalone',
+                                orientation: 'portrait',
                                 icons: [
                                   {
                                     src: 'icon-192.png',
