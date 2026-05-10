@@ -88,19 +88,19 @@
 
         {/* LEGS */}
         <path d="M18,63 L42,63 L45,74 L33,74 L31,67 L29,74 L15,74 Z" fill="#1e293b" />
-        <line x1="22" y1="63" x2="20" y2="73" stroke="#0f172a" strokeWidth="1.5" />
-        <line x1="38" y1="63" x2="40" y2="73" stroke="#0f172a" strokeWidth="1.5" />
+        <line x1="22" y1="63" x2="20" y2="73" stroke="#0f172a" strokeWidth="1.2" />
+        <line x1="38" y1="63" x2="40" y2="73" stroke="#0f172a" strokeWidth="1.2" />
 
         {/* BOOTS */}
         <g className="jim-foot-left">
         <path d="M13.5,73 L27.5,73 Q29.5,77 29.5,78 L13.5,78 Z" fill="#5a3a1a" />
         <path d="M13.5,73 L20,73 Q21,77 20,78 L13.5,78 Z" fill="#3e2610" />
-        <rect x="13.5" y="77.5" width="16" height="2.5" rx="0.8" fill="#1a0f05" />
+        <rect x="13.5" y="77.5" width="12" height="2.5" rx="0.8" fill="#1a0f05" />
         </g>
         <g className="jim-foot-right">
         <path d="M32.5,73 L46.5,73 Q48.5,77 48.5,78 L32.5,78 Z" fill="#5a3a1a" />
         <path d="M40,73 L46.5,73 Q48.5,77 48.5,78 L40.5,78 Z" fill="#3e2610" />
-        <rect x="32.5" y="77.5" width="16" height="2.5" rx="0.8" fill="#1a0f05" />
+        <rect x="32.5" y="77.5" width="12" height="2.5" rx="0.8" fill="#1a0f05" />
         </g>
 
         {/* TORSO */}
@@ -108,18 +108,18 @@
         <path d="M15,45 C20,43 40,43 45,45 L42.5,61 L17.5,61 Z" fill="#eab308" />
         <polygon points="24.5,44 35.5,44 30,52.5" fill="#0a1120" />
         <path d="M16.5,55 Q30,58 43.5,55 L43,59 Q30,61.5 17,59 Z" fill="#f8fafc" />
-        <path d="M21.5,44 L21.5,56.5 M38.5,44 L38.5,56.5" stroke="#f8fafc" strokeWidth="4.5" strokeLinecap="round" />
+        <path d="M21.5,44 L21.5,56.5 M38.5,44 L38.5,56.5" stroke="#fef08a" strokeWidth="2.5" strokeLinecap="round" strokeOpacity="0.6" />
         <rect x="17.5" y="61.2" width="25" height="3.2" fill="#020617" rx="0.5" />
         <rect x="27.5" y="60.8" width="5" height="5" rx="1" fill="#cbd5e1" />
         <rect x="28" y="61.3" width="4" height="4" rx="0.5" fill="#94a3b8" />
 
         {/* RIGHT ARM */}
         <g className="jim-arm-right">
-        <polygon points="41,44 48.5,46 49.5,56 41.2,52" fill="#eab308" />
-        <polygon points="41,44 48.5,46 46,48 41.5,46" fill="#ca8a04" opacity="0.45" />
-        <polygon points="41,51 49.5,55 46.5,65.5 40.5,63.2" fill="#f5cba0" />
-        <rect x="39" y="62.5" width="7.5" height="6.2" rx="2.5" fill="#f5cba0" />
-        <path d="M39.5,64.5 Q43.5,68.5 46,65.5" stroke="#d4956a" strokeWidth="1.1" fill="none" strokeLinecap="round" />
+        <polygon points="43,44 50.5,46 51.5,56 43.2,52" fill="#eab308" />
+        <polygon points="43,44 50.5,46 48,48 43.5,46" fill="#ca8a04" opacity="0.45" />
+        <polygon points="43,51 51.5,55 48.5,65.5 42.5,63.2" fill="#f5cba0" />
+        <rect x="41" y="62.5" width="7.5" height="6.2" rx="2.5" fill="#f5cba0" />
+        <path d="M41.5,64.5 Q45.5,68.5 48,65.5" stroke="#d4956a" strokeWidth="1.1" fill="none" strokeLinecap="round" />
         </g>
 
         {/* NECK */}
@@ -2111,7 +2111,7 @@
   /* ════════════════════════════════════════════
      FLOATING JIM (phone call only)
   ════════════════════════════════════════════ */
-  const DraggableJim = ({ size, onTap }) => {
+  const DraggableJim = ({ size }) => {
     const placeholderRef = useRef(null);
     const [fixed, setFixed] = useState(false);
     const [returning, setReturning] = useState(false);
@@ -2148,7 +2148,6 @@
         window.removeEventListener('mouseup', onEnd);
         window.removeEventListener('touchmove', onMove);
         window.removeEventListener('touchend', onEnd);
-        if (!drag.current.hasMoved) { onTap?.(); return; }
         setIsDragging(false);
         setReturning(true);
         setDragPos({ x: drag.current.originX, y: drag.current.originY });
@@ -2169,8 +2168,11 @@
         </div>
         {fixed && (
           <div style={{ position: 'fixed', left: dragPos.x, top: dragPos.y, zIndex: 9999, pointerEvents: 'none',
-            transition: returning ? 'left 0.5s cubic-bezier(0.34,1.56,0.64,1), top 0.5s cubic-bezier(0.34,1.56,0.64,1)' : 'none' }}>
-            <JimMascot size={size} state={isDragging ? 'wave' : 'idle'}/>
+            transform: isDragging ? 'scale(1.5)' : 'scale(1)',
+            transition: returning 
+              ? 'left 0.8s cubic-bezier(0.68,-0.55,0.265,1.55), top 0.8s cubic-bezier(0.68,-0.55,0.265,1.55), transform 0.5s ease-out' 
+              : 'transform 0.2s ease-out' }}>
+            <JimMascot size={size} state={isDragging ? 'error' : 'idle'}/>
           </div>
         )}
       </>
@@ -3269,7 +3271,7 @@ Return ONLY a valid JSON object. Format: {"cost": 123.45, "items": "Hammer\\nNai
           <div className="flex items-center gap-2.5 cursor-pointer min-w-0 flex-1" onClick={() => { setViewMode('dashboard'); setSelectionMode(false); }}>
             {businessProfile?.logo
               ? <img src={businessProfile.logo} className="h-9 w-9 object-contain rounded-lg bg-slate-100 dark:bg-slate-800 p-0.5 flex-shrink-0" alt=""/>
-              : jimBusy ? <div className="h-9 w-9 flex-shrink-0"/> : <DraggableJim size={36} onTap={startJimLive}/>}
+              : jimBusy ? <div className="h-9 w-9 flex-shrink-0"/> : <DraggableJim size={36}/>}
             <div className="min-w-0">
               <h1 className="font-extrabold text-lg tracking-tight truncate leading-none">{viewMode === 'detail' ? 'Job Details' : (businessProfile?.name || 'JIM')}</h1>
               {viewMode !== 'detail' && userTier && userTier !== 'free' ? (
