@@ -24,28 +24,28 @@
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 90" width="100%" height="100%" overflow="visible">
       <style>{`
         .jim-body {
-          animation: bounce 0.2s ease-in-out infinite alternate, glitch 1.5s steps(3) infinite;
+          animation: bounce 0.4s ease-in-out infinite alternate, glitch 1.5s steps(3) infinite;
           transform-origin: 30px 60px;
         }
         .jim-head {
-          animation: nod 0.4s ease-in-out infinite;
+          animation: nod 0.8s ease-in-out infinite;
           transform-origin: 30px 28px;
         }
         .jim-hat {
-          animation: spin 2s linear infinite;
-          transform-origin: 30px 19px;
+          animation: nod 0.8s ease-in-out infinite;
+          transform-origin: 30px 28px;
         }
         .jim-arm-left {
-          animation: swingLeft 0.6s ease-in-out infinite;
+          animation: swingLeft 0.9s ease-in-out infinite;
           transform-origin: 15px 48px;
         }
         .jim-arm-right {
-          animation: swingRight 0.5s ease-in-out infinite 0.3s;
+          animation: swingRight 1s ease-in-out infinite 0.5s;
           transform-origin: 44px 46px;
         }
         .jim-foot-left {
-          animation: tapLeft 0.3s ease-in-out infinite;
-          transform-origin: 23px 73px;
+          animation: tapRight 0.4s ease-in-out infinite 0.2s;
+          transform-origin: 38px 73px;
         }
         .jim-foot-right {
           animation: tapRight 0.4s ease-in-out infinite 0.2s;
@@ -64,14 +64,14 @@
           transform-origin: 12px 62px;
         }
         .tick-draw {
-          animation: drawTick 0.5s ease-out 1.2s both;
+          animation: drawTick 1s ease-out 1.2s both;
           stroke-dasharray: 12;
           stroke-dashoffset: 12;
         }
 
         @keyframes bounce {
           0% { transform: translateY(0) scaleY(1); }
-          100% { transform: translateY(-4px) scaleY(1.05); }
+          100% { transform: translateY(-1px) scaleY(1.05); }
         }
         @keyframes glitch {
           0%, 100% { transform: translate(0); }
