@@ -23,14 +23,38 @@
       <div className={wrapCls} style={{ width: size, height: h, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
       <svg viewBox="0 0 60 90" width="100%" height="100%" overflow="visible" xmlns="http://www.w3.org/2000/svg">
       <style>
-      .jim-body { animation: bounce 0.6s ease-in-out infinite alternate; }
-      .jim-head { animation: nod 1.2s ease-in-out infinite; transform-origin: 30px 26px; }
-      .jim-arm-left { animation: swingLeft 1.5s ease-in-out infinite; transform-origin: 15px 48px; }
-      .jim-arm-right { animation: swingRight 1.5s ease-in-out infinite 0.75s; transform-origin: 44px 46px; }
-      .jim-foot-left { animation: tapLeft 0.8s ease-in-out infinite; transform-origin: 20px 73px; }
-      .jim-foot-right { animation: tapRight 0.8s ease-in-out infinite 0.4s; transform-origin: 40px 73px; }
-      .jim-mustache { animation: twitch 3s ease-in-out infinite 1s; transform-origin: 30px 38px; }
-      .tick-draw { animation: drawTick 0.5s ease-out 1.2s both; stroke-dasharray: 12; stroke-dashoffset: 12; }
+      .jim-body {
+        animation: bounce 0.6s ease-in-out infinite alternate;
+      }
+      .jim-head {
+        animation: nod 1.2s ease-in-out infinite;
+        transform-origin: 30px 26px;
+      }
+      .jim-arm-left {
+        animation: swingLeft 1.5s ease-in-out infinite;
+        transform-origin: 15px 48px;
+      }
+      .jim-arm-right {
+        animation: swingRight 1.5s ease-in-out infinite 0.75s;
+        transform-origin: 44px 46px;
+      }
+      .jim-foot-left {
+        animation: tapLeft 0.8s ease-in-out infinite;
+        transform-origin: 20px 73px;
+      }
+      .jim-foot-right {
+        animation: tapRight 0.8s ease-in-out infinite 0.4s;
+        transform-origin: 40px 73px;
+      }
+      .jim-mustache {
+        animation: twitch 3s ease-in-out infinite 1s;
+        transform-origin: 30px 38px;
+      }
+      .tick-draw {
+        animation: drawTick 0.5s ease-out 1.2s both;
+        stroke-dasharray: 12;
+        stroke-dashoffset: 12;
+      }
 
       @keyframes bounce {
         0% { transform: translateY(0); }
@@ -69,7 +93,7 @@
 
       <g class="jim-body">
 
-      <!-- ── LEFT ARM + CLIPBOARD (behind torso) ── -->
+      <!-- LEFT ARM + CLIPBOARD -->
       <g class="jim-arm-left">
       <polygon points="19,44 12,49 10,57 18,53" fill="#eab308" />
       <polygon points="19,44 12,49 14,51 19,48" fill="#ca8a04" opacity="0.5" />
@@ -81,18 +105,17 @@
       <rect x="5" y="56.5" width="7.5" height="1" rx="0.5" fill="#94a3b8" />
       <rect x="5" y="59" width="7.5" height="1" rx="0.5" fill="#94a3b8" />
       <rect x="5" y="61.5" width="5" height="1" rx="0.5" fill="#cbd5e1" />
-      <!-- Green tick only — no circle, no glow -->
       <path class="tick-draw" d="M6.2,66.5 L8.2,68.8 L12,64.5" stroke="#22c55e" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
       <rect x="13" y="61" width="6.5" height="5.5" rx="2" fill="#f5cba0" />
       <path d="M14,64 L12.5,61.5" stroke="#d4956a" stroke-width="1.3" stroke-linecap="round" />
       </g>
 
-      <!-- ── LEGS ── -->
+      <!-- LEGS -->
       <path d="M18,63 L42,63 L45,74 L33,74 L31,67 L29,74 L15,74 Z" fill="#1e293b" />
       <line x1="22" y1="63" x2="20" y2="73" stroke="#0f172a" stroke-width="1.5" />
       <line x1="38" y1="63" x2="40" y2="73" stroke="#0f172a" stroke-width="1.5" />
 
-      <!-- ── BOOTS ── -->
+      <!-- BOOTS -->
       <g class="jim-foot-left">
       <path d="M13.5,73 L27.5,73 Q29.5,77 29.5,78 L13.5,78 Z" fill="#5a3a1a" />
       <path d="M13.5,73 L20,73 Q21,77 20,78 L13.5,78 Z" fill="#3e2610" />
@@ -104,7 +127,7 @@
       <rect x="32.5" y="77.5" width="16" height="2.5" rx="0.8" fill="#1a0f05" />
       </g>
 
-      <!-- ── TORSO ── -->
+      <!-- TORSO -->
       <path d="M19,43 Q30,41.5 41,43 L39,62 L21,62 Z" fill="#0a1120" />
       <path d="M15,45 C20,43 40,43 45,45 L42.5,61 L17.5,61 Z" fill="#eab308" />
       <polygon points="24.5,44 35.5,44 30,52.5" fill="#0a1120" />
@@ -114,7 +137,7 @@
       <rect x="27.5" y="60.8" width="5" height="5" rx="1" fill="#cbd5e1" />
       <rect x="28" y="61.3" width="4" height="4" rx="0.5" fill="#94a3b8" />
 
-      <!-- ── RIGHT ARM ── -->
+      <!-- RIGHT ARM -->
       <g class="jim-arm-right">
       <polygon points="41,44 48.5,46 49.5,56 41.2,52" fill="#eab308" />
       <polygon points="41,44 48.5,46 46,48 41.5,46" fill="#ca8a04" opacity="0.45" />
@@ -123,24 +146,18 @@
       <path d="M39.5,64.5 Q43.5,68.5 46,65.5" stroke="#d4956a" stroke-width="1.1" fill="none" stroke-linecap="round" />
       </g>
 
-      <!-- ── NECK ── -->
+      <!-- NECK -->
       <rect x="26" y="39" width="8" height="6" fill="#f5cba0" />
 
-      <!-- ── HEAD + HARD HAT (rounder head, natural smirk) ── -->
+      <!-- HEAD + HARD HAT -->
       <g class="jim-head">
-
-      <!-- Ears -->
       <ellipse cx="17.5" cy="30" rx="2.4" ry="3.2" fill="#f5cba0" />
       <ellipse cx="42.5" cy="30" rx="2.4" ry="3.2" fill="#f5cba0" />
-
-      <!-- Head shape — more circular, less oval -->
       <circle cx="30" cy="28" r="14.5" fill="#fcd9b6" />
 
-      <!-- Eyebrows -->
       <path d="M19.5,20.8 L26,19.5" stroke="#2d1a0a" stroke-width="1.8" stroke-linecap="round" />
       <path d="M34,19.5 L40.5,20.8" stroke="#2d1a0a" stroke-width="1.8" stroke-linecap="round" />
 
-      <!-- Eyes — half-lidded -->
       <ellipse cx="24" cy="27" rx="3.8" ry="3.2" fill="white" />
       <ellipse cx="36" cy="27" rx="3.8" ry="3.2" fill="white" />
       <circle cx="24" cy="27.3" r="2.2" fill="#1a5a38" />
@@ -152,28 +169,21 @@
       <path d="M20,25.2 Q24,23.8 28,25.2" stroke="#2d1a0a" stroke-width="0.8" fill="none" stroke-linecap="round" />
       <path d="M32,25.2 Q36,23.8 40,25.2" stroke="#2d1a0a" stroke-width="0.8" fill="none" stroke-linecap="round" />
 
-      <!-- Nose -->
       <path d="M30,25.5 L29.5,32 Q29.5,33.5 31.5,33" stroke="#c4885a" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round" fill="none" />
-
-      <!-- Smirk — smaller, more natural -->
       <path d="M24,39 Q30,41.5 36,38.8" stroke="#2d1a0a" stroke-width="1.1" fill="none" stroke-linecap="round" />
 
-      <!-- Mustache — single, clean, no double -->
       <g class="jim-mustache">
       <path d="M21,36.5 Q26,33 30,35.5" stroke="#2d1a0a" stroke-width="2" fill="none" stroke-linecap="round" />
       <path d="M30,35.5 Q34,33 39,36.5" stroke="#2d1a0a" stroke-width="2" fill="none" stroke-linecap="round" />
       </g>
 
-      <!-- Hard hat dome -->
       <path d="M15,19 C15,4 45,4 45,19 Z" fill="#f97316" />
       <path d="M26.5,19 L27.5,9 Q30,7 32.5,9 L33.5,19 Z" fill="#ea580c" opacity="0.25" />
       <path d="M19,19 L20,12 Q21.5,10.5 23,12 L23,19 Z" fill="#ea580c" opacity="0.18" />
       <path d="M41,19 L40,12 Q38.5,10.5 37,12 L37,19 Z" fill="#ea580c" opacity="0.18" />
       <path d="M18,17.5 C18.5,10 22,7.5 22,7.5 C22,7.5 20,11 20.5,17.5 Z" fill="white" opacity="0.2" />
-      <!-- Brim -->
       <path d="M11,19 Q30,15 49,19 Q51,20 50,22 L10,22 Q9,20 11,19 Z" fill="#ea580c" />
       <path d="M11,19 Q30,15 49,19 Q50.5,20 50,20.8 Q30,17 10,20.8 Q9.5,20 11,19 Z" fill="#fb923c" opacity="0.5" />
-
       </g>
       </g>
       </svg>
