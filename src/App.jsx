@@ -2007,7 +2007,7 @@ const JimLivePanel = ({ status, transcript, onClose, onMicTap }) => {
         <div className="flex justify-between items-center px-5 pt-5 pb-3 border-b border-slate-800 flex-shrink-0">
           <div className="flex items-center gap-2.5">
             <div className={`w-2.5 h-2.5 rounded-full ${dotColor}`} />
-            <h2 className="text-white font-black text-sm tracking-tight uppercase">Voice Mode</h2>
+            <h2 className="text-white font-black text-sm tracking-tight uppercase">Voice Mode - BETA </h2>
             <span className={`text-xs font-bold uppercase ${statusColor}`}>{statusLabel[status] || '...'}</span>
           </div>
           <div className="flex items-center gap-2">
@@ -2060,7 +2060,7 @@ const JimLivePanel = ({ status, transcript, onClose, onMicTap }) => {
       <div className="flex justify-between items-center px-1">
         <div className="flex items-center gap-2">
           <div className={`w-2.5 h-2.5 rounded-full ${dotColor}`} />
-          <h2 className="text-white font-black text-sm tracking-tight uppercase">Voice Mode</h2>
+          <h2 className="text-white font-black text-sm tracking-tight uppercase">Voice Mode - BETA</h2>
         </div>
         <div className="flex items-center gap-1.5">
           <button onClick={() => setExpanded(true)} className="text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 p-1.5 rounded-full transition-colors" title="Expand">
@@ -2115,13 +2115,180 @@ const JimLivePanel = ({ status, transcript, onClose, onMicTap }) => {
 /* ════════════════════════════════════════════
    FLOATING JIM (phone call only)
 ════════════════════════════════════════════ */
+const RETURN_ANIMATIONS = ['balloon', 'truck', 'parachute', 'zigzag', 'rocket'];
+
 const DraggableJim = ({ size }) => {
   const placeholderRef = useRef(null);
   const [fixed, setFixed] = useState(false);
-  const [returning, setReturning] = useState(false);
   const [dragPos, setDragPos] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
+  const [returnAnim, setReturnAnim] = useState(null); // { type, phase, ... }
   const drag = useRef({ hasMoved: false, startCX: 0, startCY: 0, originX: 0, originY: 0 });
+  const animRef = useRef(null);
+
+  const getHomePos = () => {
+    const el = placeholderRef.current;
+    if (!el) return { x: 0, y: 0 };
+    const rect = el.getBoundingClientRect();
+    return { x: rect.left, y: rect.top };
+  };
+
+  // ── Cleanup any running animation ──
+  const clearAnim = () => {
+    if (animRef.current) { cancelAnimationFrame(animRef.current); animRef.current = null; }
+  };
+
+  // ── 🎈 Balloon: float up off-screen, pop back at home ──
+  const animBalloon = (from) => {
+    const home = getHomePos();
+    const startTime = performance.now();
+    const floatDuration = 900;
+    const targetY = -120;
+    setReturnAnim({ type: 'balloon', phase: 'float' });
+    const step = (now) => {
+      const t = Math.min((now - startTime) / floatDuration, 1);
+      const eased = t * t;
+      const wobble = Math.sin(t * Math.PI * 4) * 15;
+      setDragPos({ x: from.x + wobble + (home.x - from.x) * t * 0.3, y: from.y + (targetY - from.y) * eased });
+      if (t < 1) { animRef.current = requestAnimationFrame(step); }
+      else {
+        setReturnAnim({ type: 'balloon', phase: 'pop' });
+        setDragPos(home);
+        setTimeout(() => { setFixed(false); setReturnAnim(null); }, 400);
+      }
+    };
+    animRef.current = requestAnimationFrame(step);
+  };
+
+  // ── 🚛 Truck: drive off to the right, reappear from left ──
+  const animTruck = (from) => {
+    const home = getHomePos();
+    const vw = window.innerWidth;
+    const startTime = performance.now();
+    const driveOutDur = 600;
+    const driveInDur = 700;
+    setReturnAnim({ type: 'truck', phase: 'driveOut' });
+    const driveOut = (now) => {
+      const t = Math.min((now - startTime) / driveOutDur, 1);
+      const eased = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+      setDragPos({ x: from.x + (vw + 80 - from.x) * eased, y: from.y + (home.y - from.y) * t * 0.5 });
+      if (t < 1) { animRef.current = requestAnimationFrame(driveOut); }
+      else {
+        setReturnAnim({ type: 'truck', phase: 'driveIn' });
+        const driveStart = performance.now();
+        const driveIn = (now2) => {
+          const t2 = Math.min((now2 - driveStart) / driveInDur, 1);
+          const eased2 = t2 < 0.5 ? 2 * t2 * t2 : -1 + (4 - 2 * t2) * t2;
+          setDragPos({ x: -80 + (home.x + 80) * eased2, y: home.y });
+          if (t2 < 1) { animRef.current = requestAnimationFrame(driveIn); }
+          else {
+            setReturnAnim({ type: 'truck', phase: 'park' });
+            setDragPos(home);
+            setTimeout(() => { setFixed(false); setReturnAnim(null); }, 350);
+          }
+        };
+        animRef.current = requestAnimationFrame(driveIn);
+      }
+    };
+    animRef.current = requestAnimationFrame(driveOut);
+  };
+
+  // ── 🪂 Parachute: fall from top, sway side to side ──
+  const animParachute = (from) => {
+    const home = getHomePos();
+    // First fly up quickly
+    const startTime = performance.now();
+    const launchDur = 350;
+    const fallDur = 1200;
+    setReturnAnim({ type: 'parachute', phase: 'launch' });
+    const launch = (now) => {
+      const t = Math.min((now - startTime) / launchDur, 1);
+      setDragPos({ x: from.x + (home.x - from.x) * t, y: from.y + (-60 - from.y) * t * t });
+      if (t < 1) { animRef.current = requestAnimationFrame(launch); }
+      else {
+        setReturnAnim({ type: 'parachute', phase: 'fall' });
+        const fallStart = performance.now();
+        const topX = home.x;
+        const fall = (now2) => {
+          const t2 = Math.min((now2 - fallStart) / fallDur, 1);
+          const eased = t2 < 0.5 ? 4 * t2 * t2 * t2 : 1 - Math.pow(-2 * t2 + 2, 3) / 2;
+          const sway = Math.sin(t2 * Math.PI * 5) * 30 * (1 - t2);
+          setDragPos({ x: topX + sway, y: -60 + (home.y + 60) * eased });
+          if (t2 < 1) { animRef.current = requestAnimationFrame(fall); }
+          else {
+            setReturnAnim({ type: 'parachute', phase: 'land' });
+            setDragPos(home);
+            setTimeout(() => { setFixed(false); setReturnAnim(null); }, 350);
+          }
+        };
+        animRef.current = requestAnimationFrame(fall);
+      }
+    };
+    animRef.current = requestAnimationFrame(launch);
+  };
+
+  // ── ⭐ Zigzag: bounce diagonally back home ──
+  const animZigzag = (from) => {
+    const home = getHomePos();
+    const startTime = performance.now();
+    const duration = 1200;
+    const zigCount = 5;
+    setReturnAnim({ type: 'zigzag', phase: 'go' });
+    const step = (now) => {
+      const t = Math.min((now - startTime) / duration, 1);
+      const eased = 1 - Math.pow(1 - t, 3);
+      const zigAmp = 60 * (1 - t);
+      const zig = Math.sin(t * Math.PI * zigCount) * zigAmp;
+      setDragPos({
+        x: from.x + (home.x - from.x) * eased + zig,
+        y: from.y + (home.y - from.y) * eased
+      });
+      if (t < 1) { animRef.current = requestAnimationFrame(step); }
+      else {
+        setDragPos(home);
+        setTimeout(() => { setFixed(false); setReturnAnim(null); }, 200);
+      }
+    };
+    animRef.current = requestAnimationFrame(step);
+  };
+
+  // ── 🚀 Rocket: blast off upward then crash-land at home ──
+  const animRocket = (from) => {
+    const home = getHomePos();
+    const startTime = performance.now();
+    const blastDur = 500;
+    const fallDur = 600;
+    setReturnAnim({ type: 'rocket', phase: 'blast' });
+    const blast = (now) => {
+      const t = Math.min((now - startTime) / blastDur, 1);
+      const shake = Math.sin(t * Math.PI * 20) * 3 * (1 - t);
+      setDragPos({ x: from.x + shake, y: from.y - (window.innerHeight + 100) * t * t });
+      if (t < 1) { animRef.current = requestAnimationFrame(blast); }
+      else {
+        // Reappear at the top above home
+        setReturnAnim({ type: 'rocket', phase: 'fall' });
+        setDragPos({ x: home.x, y: -80 });
+        const fallStart = performance.now();
+        const fall = (now2) => {
+          const t2 = Math.min((now2 - fallStart) / fallDur, 1);
+          // Bounce ease out
+          const bounce = t2 < 0.36 ? 7.5625 * t2 * t2
+            : t2 < 0.73 ? 7.5625 * (t2 - 0.545) * (t2 - 0.545) + 0.75
+              : t2 < 0.91 ? 7.5625 * (t2 - 0.82) * (t2 - 0.82) + 0.9375
+                : 7.5625 * (t2 - 0.955) * (t2 - 0.955) + 0.984375;
+          setDragPos({ x: home.x, y: -80 + (home.y + 80) * bounce });
+          if (t2 < 1) { animRef.current = requestAnimationFrame(fall); }
+          else {
+            setReturnAnim({ type: 'rocket', phase: 'land' });
+            setDragPos(home);
+            setTimeout(() => { setFixed(false); setReturnAnim(null); }, 350);
+          }
+        };
+        animRef.current = requestAnimationFrame(fall);
+      }
+    };
+    animRef.current = requestAnimationFrame(blast);
+  };
 
   const onStart = (e) => {
     const el = placeholderRef.current;
@@ -2129,6 +2296,8 @@ const DraggableJim = ({ size }) => {
     const rect = el.getBoundingClientRect();
     const cx = e.touches ? e.touches[0].clientX : e.clientX;
     const cy = e.touches ? e.touches[0].clientY : e.clientY;
+    clearAnim();
+    setReturnAnim(null);
     drag.current = { hasMoved: false, startCX: cx, startCY: cy, originX: rect.left, originY: rect.top };
 
     const onMove = (ev) => {
@@ -2141,21 +2310,34 @@ const DraggableJim = ({ size }) => {
         drag.current.hasMoved = true;
         setFixed(true);
         setIsDragging(true);
-        setReturning(false);
+        setReturnAnim(null);
         setDragPos({ x: drag.current.originX, y: drag.current.originY });
       }
       if (drag.current.hasMoved) setDragPos({ x: drag.current.originX + dx, y: drag.current.originY + dy });
     };
 
-    const onEnd = () => {
+    const onEnd = (ev) => {
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onEnd);
       window.removeEventListener('touchmove', onMove);
       window.removeEventListener('touchend', onEnd);
       setIsDragging(false);
-      setReturning(true);
-      setDragPos({ x: drag.current.originX, y: drag.current.originY });
-      setTimeout(() => { setFixed(false); setReturning(false); }, 520);
+      // Calculate drop position from the ref (avoids stale closure on dragPos state)
+      const lastMx = ev.changedTouches ? ev.changedTouches[0].clientX : ev.clientX;
+      const lastMy = ev.changedTouches ? ev.changedTouches[0].clientY : ev.clientY;
+      const dropPos = {
+        x: drag.current.originX + (lastMx - drag.current.startCX),
+        y: drag.current.originY + (lastMy - drag.current.startCY)
+      };
+      const animType = RETURN_ANIMATIONS[Math.floor(Math.random() * RETURN_ANIMATIONS.length)];
+      switch (animType) {
+        case 'balloon': animBalloon(dropPos); break;
+        case 'truck': animTruck(dropPos); break;
+        case 'parachute': animParachute(dropPos); break;
+        case 'zigzag': animZigzag(dropPos); break;
+        case 'rocket': animRocket(dropPos); break;
+        default: animZigzag(dropPos);
+      }
     };
 
     window.addEventListener('mousemove', onMove);
@@ -2164,23 +2346,55 @@ const DraggableJim = ({ size }) => {
     window.addEventListener('touchend', onEnd);
   };
 
+  useEffect(() => () => clearAnim(), []);
+
+  // Determine mascot state based on current animation
+  const getMascotState = () => {
+    if (isDragging) return 'error';
+    if (!returnAnim) return 'idle';
+    switch (returnAnim.type) {
+      case 'balloon': return returnAnim.phase === 'pop' ? 'wave' : 'thinking';
+      case 'truck': return returnAnim.phase === 'park' ? 'wave' : 'idle';
+      case 'parachute': return returnAnim.phase === 'fall' ? 'wave' : 'thinking';
+      case 'zigzag': return 'error';
+      case 'rocket': return returnAnim.phase === 'blast' ? 'error' : returnAnim.phase === 'land' ? 'wave' : 'thinking';
+      default: return 'idle';
+    }
+  };
+
+  // Accessory emoji overlay
+  const getAccessory = () => {
+    if (!returnAnim) return null;
+    const { type, phase } = returnAnim;
+    if (type === 'balloon' && phase === 'float') return <span style={{ position: 'absolute', top: -28, left: '50%', transform: 'translateX(-50%)', fontSize: 22, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }}>🎈</span>;
+    if (type === 'balloon' && phase === 'pop') return <span style={{ position: 'absolute', top: -20, left: '50%', transform: 'translateX(-50%)', fontSize: 16, animation: 'jim-pop 0.3s ease-out forwards' }}>💥</span>;
+    if (type === 'truck') return <span style={{ position: 'absolute', bottom: -4, left: -10, fontSize: 20 }}>🚛</span>;
+    if (type === 'parachute' && phase === 'fall') return <span style={{ position: 'absolute', top: -26, left: '50%', transform: 'translateX(-50%)', fontSize: 22 }}>🪂</span>;
+    if (type === 'rocket' && phase === 'blast') return <span style={{ position: 'absolute', bottom: -16, left: '50%', transform: 'translateX(-50%)', fontSize: 18 }}>🔥</span>;
+    if (type === 'rocket' && phase === 'fall') return <span style={{ position: 'absolute', top: -26, left: '50%', transform: 'translateX(-50%)', fontSize: 18 }}>💨</span>;
+    return null;
+  };
+
+  const draggedContent = fixed ? (
+    <div style={{
+      position: 'fixed', left: dragPos.x, top: dragPos.y, zIndex: 999999, pointerEvents: 'none',
+      transform: isDragging ? 'scale(1.5)' : 'scale(1)',
+      transition: isDragging ? 'transform 0.2s ease-out' : 'transform 0.3s ease-out',
+    }}>
+      <div style={{ position: 'relative' }}>
+        {getAccessory()}
+        <JimMascot size={size} state={getMascotState()} />
+      </div>
+    </div>
+  ) : null;
+
   return (
     <>
       <div ref={placeholderRef} style={{ width: size, height: Math.round(size * 1.3), visibility: fixed ? 'hidden' : 'visible', cursor: 'grab', flexShrink: 0 }}
         onMouseDown={onStart} onTouchStart={onStart}>
         {!fixed && <JimMascot size={size} state="idle" />}
       </div>
-      {fixed && (
-        <div style={{
-          position: 'fixed', left: dragPos.x, top: dragPos.y, zIndex: 99999, pointerEvents: 'none',
-          transform: isDragging ? 'scale(1.5)' : 'scale(1)',
-          transition: returning
-            ? 'left 0.8s cubic-bezier(0.68,-0.55,0.265,1.55), top 0.8s cubic-bezier(0.68,-0.55,0.265,1.55), transform 0.5s ease-out'
-            : 'transform 0.2s ease-out'
-        }}>
-          <JimMascot size={size} state={isDragging ? 'error' : 'idle'} />
-        </div>
-      )}
+      {draggedContent && createPortal(draggedContent, document.body)}
     </>
   );
 };
@@ -3335,9 +3549,12 @@ Return ONLY a valid JSON object. Format: {"cost": 123.45, "items": "Hammer\\nNai
               <button onClick={() => setPrintPreviewJob(activeJob)} className="flex items-center gap-1.5 h-10 px-3.5 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-xl font-bold text-xs active:scale-95 shadow-sm"><Printer size={14} /> PDF</button>
             </>
           )}
-          <button onClick={() => startJimLive()} aria-label="Talk to JIM" title="Talk to JIM" className="w-10 h-10 flex items-center justify-center bg-purple-600 hover:bg-purple-500 text-white rounded-full active:scale-95 shadow-sm transition-colors">
-            <Mic size={18} />
-          </button>
+          <div className="relative">
+            <button onClick={() => startJimLive()} aria-label="Talk to JIM (Beta)" title="Voice Mode — BETA" className="w-10 h-10 flex items-center justify-center bg-purple-600 hover:bg-purple-500 text-white rounded-full active:scale-95 shadow-sm transition-colors">
+              <Mic size={18} />
+            </button>
+            <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-[7px] font-black tracking-wider bg-amber-400 text-amber-900 px-1.5 py-0 rounded-full leading-[14px] pointer-events-none select-none shadow-sm">BETA</span>
+          </div>
         </div>
       </header>
 
@@ -3434,7 +3651,7 @@ Return ONLY a valid JSON object. Format: {"cost": 123.45, "items": "Hammer\\nNai
                 <div className="flex flex-col items-center py-16 gap-3">
                   <p className="text-slate-600 dark:text-slate-400 font-semibold text-sm">No clients yet</p>
                   <button onClick={startJimLive} className="flex items-center gap-1.5 px-4 h-9 bg-purple-50 dark:bg-purple-950/30 hover:bg-purple-100 dark:hover:bg-purple-950/50 text-purple-600 dark:text-purple-400 rounded-full text-xs font-bold border border-purple-200 dark:border-purple-800 transition-colors active:scale-95">
-                    <Mic size={13} /> Voice Mode
+                    <Mic size={13} /> Voice Mode - BETA
                   </button>
                 </div>
               )}
@@ -3540,7 +3757,7 @@ Return ONLY a valid JSON object. Format: {"cost": 123.45, "items": "Hammer\\nNai
                     <>
                       <p className="text-slate-500 dark:text-slate-500 text-xs text-center font-medium">Tap <span className="font-semibold">New Quote</span> to get started</p>
                       <button onClick={startJimLive} className="flex items-center gap-1.5 mt-1 px-4 h-9 bg-purple-50 dark:bg-purple-950/30 hover:bg-purple-100 dark:hover:bg-purple-950/50 text-purple-600 dark:text-purple-400 rounded-full text-xs font-bold border border-purple-200 dark:border-purple-800 transition-colors active:scale-95">
-                        <Mic size={13} /> Voice Mode
+                        <Mic size={13} /> Voice Mode - BETA
                       </button>
                     </>
                   )}

@@ -59,6 +59,10 @@
 .jim-dot-3     { transform-origin: center; animation: jimDotPulse 1.2s ease-in-out infinite; animation-delay: 0.4s; }
 .jim-sway      { transform-origin: center bottom; animation: jimSway 2.2s ease-in-out infinite; }
 .jim-shake     { animation: jimShake 0.7s ease-in-out infinite; }
+@keyframes jim-pop {
+  0% { transform: translateX(-50%) scale(1); opacity: 1; }
+  100% { transform: translateX(-50%) scale(2.5); opacity: 0; }
+}
 
 .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 4px; }
 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
