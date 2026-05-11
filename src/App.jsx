@@ -1233,6 +1233,8 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
   // New Stage and Style state
   const [docStage, setDocStage] = useState(isCompletionDoc(job) ? 'invoice' : 'quote');
   const [docStyle, setDocStyle] = useState('contractor');
+  const [showBusinessHeader, setShowBusinessHeader] = useState(true);
+  const [showImages, setShowImages] = useState(true);
 
   useEffect(() => { onUpdateJob({ ...job, tasks, date: new Date(header.date).toISOString(), showSignature: signatureEnabled, signature: signatureData }); }, [header.date, header.dueDate, signatureEnabled, signatureData, tasks]);
 
@@ -1253,48 +1255,116 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
   // Style Mapping
   const STYLES = {
     contractor: {
-      container: "bg-white text-slate-900 p-6 sm:p-12 shadow-2xl rounded-sm border-t-[16px] border-orange-500",
-      headerLine: "border-b-4 border-slate-900 pb-6 mb-8",
-      accentText: "text-slate-900 font-black tracking-tight",
-      labelColor: "text-orange-600 font-bold uppercase tracking-wider text-[10px]",
-      cardHeader: () => docStage === 'invoice' ? 'bg-emerald-50 text-emerald-900 border-l-4 border-emerald-500 px-4 py-3' : 'bg-slate-50 text-slate-900 border-l-4 border-orange-500 px-4 py-3',
-      cardBody: "p-5 sm:p-6 bg-white border border-slate-100 shadow-sm mt-2 mb-6",
-      totalBox: "mt-8 border-4 border-slate-900 bg-slate-50 p-6 sm:p-8 flex justify-between items-end",
+      container: "bg-white text-slate-900 p-8 sm:p-12 shadow-2xl border-t-[10px] border-orange-500",
+      headerLine: "pb-8 mb-8 border-b-4 border-slate-900",
+      accentText: "text-slate-900 font-black text-2xl tracking-tight",
+      abnText: "text-slate-500 font-mono text-xs mt-1 font-bold",
+      contactText: "text-slate-600 font-semibold",
+      labelColor: "text-orange-500 font-black uppercase tracking-wider text-[10px]",
+      cardHeader: () => docStage === 'invoice' ? 'bg-emerald-600 text-white px-5 py-3.5 font-black' : 'bg-orange-500 text-white px-5 py-3.5 font-black',
+      cardBody: "p-5 sm:p-6 border border-t-0 border-slate-200 mb-6",
+      totalBox: "mt-10 bg-slate-900 text-white p-8 sm:p-10 -mx-8 sm:-mx-12 -mb-8 sm:-mb-12 flex justify-between items-end",
       fontFamily: "font-sans",
-      tableHeader: "bg-slate-900 text-white"
+      licBorder: "border-slate-200",
+      licText: "text-slate-500",
+      licValue: "text-slate-900 font-black",
+      clientDivider: "border-b-2 border-slate-200 pb-5 mb-6",
+      breakdownText: "font-black uppercase text-sm text-slate-400",
+      breakdownSubText: "font-black uppercase text-sm text-slate-300",
+      subtotalDivider: "mt-2 border-t border-slate-700 pt-2",
+      totalLabel: "text-orange-400 font-black uppercase tracking-widest text-[10px]",
+      totalAmount: "text-white text-4xl font-black",
+      gstIncluded: "text-slate-400",
+      termsText: "text-slate-500",
+      termsTitle: "text-slate-700 font-bold uppercase",
+      taskCard: "print-card mb-6",
+      matBox: "p-4 bg-slate-50 rounded-xl border border-slate-200",
+      imgRounded: "rounded-lg",
+      descBorder: "border-l-4 border-orange-200 pl-4",
     },
     boutique: {
-      container: "bg-[#faf9f6] text-slate-800 p-8 sm:p-16 shadow-xl rounded-3xl border border-slate-200",
-      headerLine: "border-b border-slate-300 pb-8 mb-10",
-      accentText: "text-slate-800 font-light tracking-wide",
-      labelColor: "text-slate-400 uppercase tracking-[0.2em] text-[10px]",
-      cardHeader: () => "bg-transparent border-b border-slate-300 text-slate-700 px-0 py-4 font-medium",
-      cardBody: "py-6 px-0",
-      totalBox: "mt-12 bg-white rounded-2xl shadow-sm border border-slate-100 p-8 sm:p-10 flex justify-between items-end",
+      container: "bg-[#fefcf8] text-slate-700 p-10 sm:p-16 shadow-xl border border-[#e8ddd0]",
+      headerLine: "pb-10 mb-12 border-b border-[#d9cec0]",
+      accentText: "text-slate-800 text-2xl font-light tracking-[0.08em]",
+      abnText: "text-[#a89880] font-mono text-xs mt-1",
+      contactText: "text-[#9c8c7e] font-light",
+      labelColor: "text-[#b8a890] uppercase tracking-[0.2em] text-[9px] font-medium",
+      cardHeader: () => "border-b border-[#d9cec0] text-slate-600 font-medium tracking-[0.12em] uppercase text-sm bg-transparent px-0 py-4",
+      cardBody: "py-6 px-0 border-b border-[#ede5d8] mb-8",
+      totalBox: "mt-14 bg-white rounded-2xl border border-[#e8ddd0] shadow-sm p-10 sm:p-12 flex justify-between items-end",
       fontFamily: "font-serif",
-      tableHeader: "border-b border-slate-200"
+      licBorder: "border-[#d9cec0]",
+      licText: "text-[#b8a890]",
+      licValue: "text-slate-600 font-semibold",
+      clientDivider: "border-b border-[#e8ddd0] pb-8 mb-10",
+      breakdownText: "font-medium uppercase tracking-wider text-xs text-[#b8a890]",
+      breakdownSubText: "font-medium uppercase tracking-wider text-xs text-slate-500",
+      subtotalDivider: "mt-2 border-t border-[#e8ddd0] pt-2",
+      totalLabel: "text-[#b8a890] uppercase tracking-[0.2em] text-[9px] font-medium",
+      totalAmount: "text-slate-800 text-4xl font-light tracking-tight",
+      gstIncluded: "text-[#b8a890]",
+      termsText: "text-[#a89880]",
+      termsTitle: "text-slate-500 font-medium uppercase tracking-widest",
+      taskCard: "border-b border-[#e8ddd0] pb-8 mb-8",
+      matBox: "py-4 border-b border-[#e8ddd0]",
+      imgRounded: "rounded-none",
+      descBorder: "border-l-2 border-[#d9cec0] pl-4",
     },
     corporate: {
-      container: "bg-white text-slate-900 p-6 sm:p-12 border border-slate-200 rounded-none shadow-md",
-      headerLine: "bg-slate-900 text-white p-8 sm:p-12 -mx-6 sm:-mx-12 -mt-6 sm:-mt-12 mb-10",
-      accentText: "text-white font-bold tracking-tight",
+      container: "bg-white text-slate-900 p-6 sm:p-12 shadow-md border border-slate-100",
+      headerLine: "bg-[#0f2044] text-white p-8 sm:p-12 -mx-6 sm:-mx-12 -mt-6 sm:-mt-12 mb-10",
+      accentText: "text-white font-bold text-2xl tracking-tight",
+      abnText: "text-slate-300 font-mono text-xs mt-1",
+      contactText: "text-slate-300 font-medium",
       labelColor: "text-blue-600 font-bold uppercase text-[10px] tracking-wider",
-      cardHeader: () => "bg-slate-50 text-slate-900 border-b-2 border-slate-200 px-5 py-3 font-bold",
-      cardBody: "p-5 sm:p-6 bg-white border-x border-b border-slate-100 mb-6",
-      totalBox: "mt-10 bg-slate-900 text-white p-8 sm:p-12 -mx-6 sm:-mx-12 -mb-6 sm:-mb-12 flex justify-between items-end",
+      cardHeader: () => "bg-slate-50 text-slate-800 border-l-4 border-blue-600 px-5 py-4 font-bold text-sm uppercase tracking-wide",
+      cardBody: "p-5 sm:p-6 bg-white border border-slate-100 border-t-0 mb-6",
+      totalBox: "mt-10 bg-[#0f2044] text-white p-8 sm:p-12 -mx-6 sm:-mx-12 -mb-6 sm:-mb-12 flex justify-between items-end",
       fontFamily: "font-sans",
-      tableHeader: "bg-slate-100 text-slate-600"
+      licBorder: "border-slate-600",
+      licText: "text-slate-400",
+      licValue: "text-white font-mono",
+      clientDivider: "border-b-2 border-slate-100 pb-4 mb-6",
+      breakdownText: "font-bold uppercase text-sm text-slate-400",
+      breakdownSubText: "font-bold uppercase text-sm text-slate-300",
+      subtotalDivider: "mt-2 border-t border-[#1a3060] pt-2",
+      totalLabel: "text-blue-300 font-bold uppercase tracking-widest text-[10px]",
+      totalAmount: "text-white text-4xl font-black",
+      gstIncluded: "text-slate-400",
+      termsText: "text-slate-400",
+      termsTitle: "text-slate-300 font-bold uppercase",
+      taskCard: "mb-6",
+      matBox: "p-5 bg-slate-50 border border-slate-100 rounded",
+      imgRounded: "rounded-none",
+      descBorder: "border-l-4 border-blue-100 pl-4",
     },
     industrial: {
-      container: "bg-white text-black p-4 sm:p-8 border-[8px] border-black rounded-none shadow-[8px_8px_0px_0px_rgba(250,204,21,1)]",
-      headerLine: "bg-yellow-400 text-black p-4 sm:p-6 border-b-[8px] border-black -mx-4 sm:-mx-8 -mt-4 sm:-mt-8 mb-8",
-      accentText: "text-black font-black uppercase",
+      container: "bg-white text-black p-4 sm:p-8 border-[6px] border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]",
+      headerLine: "bg-yellow-400 text-black p-6 sm:p-8 border-b-[6px] border-black -mx-4 sm:-mx-8 -mt-4 sm:-mt-8 mb-8",
+      accentText: "text-black font-black text-2xl uppercase tracking-widest",
+      abnText: "text-black font-mono font-black text-xs mt-1",
+      contactText: "text-black font-bold",
       labelColor: "text-black font-black uppercase tracking-widest text-[10px]",
-      cardHeader: () => "border-4 border-black bg-black text-white px-4 py-3 font-black uppercase",
-      cardBody: "p-4 sm:p-6 border-x-4 border-b-4 border-black bg-white mb-6",
-      totalBox: "mt-8 border-[8px] border-black bg-yellow-400 p-6 sm:p-8 -mx-4 sm:-mx-8 -mb-4 sm:-mb-8 flex justify-between items-end",
+      cardHeader: () => "bg-black text-yellow-400 px-5 py-3.5 font-black uppercase tracking-widest",
+      cardBody: "p-5 sm:p-6 border-[3px] border-t-0 border-black bg-white mb-6",
+      totalBox: "mt-8 bg-yellow-400 text-black border-[6px] border-black p-6 sm:p-8 -mx-4 sm:-mx-8 -mb-4 sm:-mb-8 flex justify-between items-end",
       fontFamily: "font-mono",
-      tableHeader: "border-4 border-black"
+      licBorder: "border-black",
+      licText: "text-black font-bold",
+      licValue: "text-black font-black",
+      clientDivider: "border-b-[4px] border-black pb-4 mb-6",
+      breakdownText: "font-black uppercase text-sm text-black",
+      breakdownSubText: "font-black uppercase text-sm text-black",
+      subtotalDivider: "mt-2 border-t-4 border-black pt-2",
+      totalLabel: "text-black font-black uppercase tracking-widest text-[10px]",
+      totalAmount: "text-black text-4xl font-black",
+      gstIncluded: "text-black font-bold",
+      termsText: "text-black font-bold",
+      termsTitle: "text-black font-black uppercase",
+      taskCard: "mb-6",
+      matBox: "border-[3px] border-black p-4",
+      imgRounded: "rounded-none",
+      descBorder: "border-l-4 border-black pl-4",
     }
   };
 
@@ -1379,23 +1449,41 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
         </div>
 
         {/* Document Controls Toolbar */}
-        <div className="flex flex-wrap items-center gap-6 mb-6 p-5 bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl rounded-2xl border border-slate-200 dark:border-slate-700 no-print shadow-xl shadow-slate-200/50 dark:shadow-none">
-          <div className="flex flex-col gap-2">
-            <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Document Stage</label>
-            <div className="flex p-1 bg-slate-100 dark:bg-slate-900 rounded-xl">
-              <button onClick={() => setDocStage('quote')} className={`px-5 py-1.5 rounded-lg text-xs font-bold transition-all ${docStage === 'quote' ? 'bg-white dark:bg-slate-800 text-orange-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Quote</button>
-              <button onClick={() => setDocStage('invoice')} className={`px-5 py-1.5 rounded-lg text-xs font-bold transition-all ${docStage === 'invoice' ? 'bg-white dark:bg-slate-800 text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Invoice</button>
+        <div className="flex flex-col gap-4 mb-6 p-5 bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl rounded-2xl border border-slate-200 dark:border-slate-700 no-print shadow-xl shadow-slate-200/50 dark:shadow-none">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex flex-col gap-2">
+              <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Document Stage</label>
+              <div className="flex p-1 bg-slate-100 dark:bg-slate-900 rounded-xl">
+                <button onClick={() => setDocStage('quote')} className={`px-5 py-1.5 rounded-lg text-xs font-bold transition-all ${docStage === 'quote' ? 'bg-white dark:bg-slate-800 text-orange-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Quote</button>
+                <button onClick={() => setDocStage('invoice')} className={`px-5 py-1.5 rounded-lg text-xs font-bold transition-all ${docStage === 'invoice' ? 'bg-white dark:bg-slate-800 text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Invoice</button>
+              </div>
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Options</label>
+              <div className="flex gap-2">
+                <button onClick={() => setShowBusinessHeader(v => !v)} className={`h-8 px-3 rounded-lg text-[11px] font-black border-2 transition-all flex items-center gap-1.5 ${showBusinessHeader ? 'bg-slate-900 dark:bg-white border-slate-900 dark:border-white text-white dark:text-slate-900' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-600 text-slate-400'}`}>
+                  <Building2 size={11} /> Header
+                </button>
+                <button onClick={() => setShowImages(v => !v)} className={`h-8 px-3 rounded-lg text-[11px] font-black border-2 transition-all flex items-center gap-1.5 ${showImages ? 'bg-slate-900 dark:bg-white border-slate-900 dark:border-white text-white dark:text-slate-900' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-600 text-slate-400'}`}>
+                  <ImageIcon size={11} /> Photos
+                </button>
+              </div>
             </div>
           </div>
-          <div className="flex flex-col gap-2 flex-1 min-w-[280px]">
-            <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Persona Style</label>
-            <div className="flex gap-2">
-              {['Contractor', 'Boutique', 'Corporate', 'Industrial'].map(styleName => {
-                const val = styleName.toLowerCase();
+          <div className="flex flex-col gap-2">
+            <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Style Theme</label>
+            <div className="grid grid-cols-4 gap-2">
+              {[
+                { val: 'contractor', label: 'Contractor', preview: 'bg-orange-500' },
+                { val: 'boutique', label: 'Boutique', preview: 'bg-[#b8a890]' },
+                { val: 'corporate', label: 'Corporate', preview: 'bg-[#0f2044]' },
+                { val: 'industrial', label: 'Industrial', preview: 'bg-yellow-400 border-black' },
+              ].map(({ val, label, preview }) => {
                 const isActive = docStyle === val;
                 return (
-                  <button key={val} onClick={() => setDocStyle(val)} className={`flex-1 py-1.5 rounded-lg text-[11px] font-black transition-all border-2 ${isActive ? 'bg-orange-500 border-orange-500 text-white shadow-lg shadow-orange-500/20' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 hover:border-slate-300 dark:hover:border-slate-600'}`}>
-                    {styleName}
+                  <button key={val} onClick={() => setDocStyle(val)} className={`py-2 px-2 rounded-xl text-[11px] font-black transition-all border-2 flex flex-col items-center gap-1.5 ${isActive ? 'border-orange-500 bg-orange-50 dark:bg-orange-950/30 text-orange-600 shadow-md shadow-orange-500/10' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 hover:border-slate-300'}`}>
+                    <span className={`w-full h-2 rounded-sm border ${preview}`} />
+                    {label}
                   </button>
                 );
               })}
@@ -1404,25 +1492,25 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
         </div>
 
         <div id="pdf-content" className={`${s.container} ${s.fontFamily}`}>
-          {biz.name && (
+          {showBusinessHeader && biz.name && (
             <div className={s.headerLine}>
-              <div className="flex justify-between items-start">
+              <div className="flex justify-between items-start gap-4">
                 <div className="flex items-center gap-4">
-                  {biz.logo && <img src={biz.logo} className={`h-16 w-auto object-contain ${docStyle === 'contractor' ? 'rounded-lg' : ''}`} alt={biz.name} />}
+                  {biz.logo && <img src={biz.logo} className={`h-16 w-auto object-contain ${s.imgRounded}`} alt={biz.name} />}
                   <div>
-                    <h1 className={`text-2xl leading-tight ${s.accentText}`}>{biz.name}</h1>
-                    {biz.tradingName && <p className="text-sm text-slate-500 font-medium">T/A {biz.tradingName}</p>}
-                    {biz.abn && <p className={`text-xs mt-0.5 font-mono ${docStyle === 'corporate' ? 'text-slate-300' : 'font-bold text-slate-600'}`}>{cc.regLabel} {biz.abn}</p>}
+                    <h1 className={`leading-tight ${s.accentText}`}>{biz.name}</h1>
+                    {biz.tradingName && <p className={`text-sm font-medium mt-0.5 ${s.abnText}`}>T/A {biz.tradingName}</p>}
+                    {biz.abn && <p className={s.abnText}>{cc.regLabel} {biz.abn}</p>}
                   </div>
                 </div>
-                <div className={`text-right text-sm space-y-0.5 flex flex-col items-end ${docStyle === 'corporate' ? 'text-slate-200' : 'text-slate-600'}`}>
+                <div className={`text-right text-sm space-y-0.5 flex flex-col items-end ${s.contactText}`}>
                   {biz.phone && <p className="font-bold">{biz.phone}</p>}
                   {biz.email && <p>{biz.email}</p>}
-                  {biz.address && <p className={`${docStyle === 'corporate' ? 'text-slate-400' : 'text-slate-400'} text-xs mb-2`}>{biz.address}</p>}
+                  {biz.address && <p className="text-xs mt-1 opacity-70">{biz.address}</p>}
                   {(printLicences.length > 0 || hasInsurance) && (
-                    <div className={`mt-1 pt-2 border-t inline-block text-right min-w-[150px] ${docStyle === 'corporate' ? 'border-slate-700' : 'border-slate-200'}`}>
-                      {printLicences.map((lic, i) => <p key={i} className={`text-[10px] font-medium uppercase tracking-wide leading-tight mb-0.5 ${docStyle === 'corporate' ? 'text-slate-400' : 'text-slate-500'}`}>{lic.type}: <span className={`font-mono ${docStyle === 'corporate' ? 'text-white' : 'font-bold text-slate-800'}`}>{lic.number}</span></p>)}
-                      {hasInsurance && <p className={`text-[10px] font-medium uppercase tracking-wide leading-tight ${docStyle === 'corporate' ? 'text-slate-400' : 'text-slate-500'}`}>PLI ({biz.insurance}): <span className={`font-mono ${docStyle === 'corporate' ? 'text-white' : 'font-bold text-slate-800'}`}>{biz.insurancePolicy}</span></p>}
+                    <div className={`mt-2 pt-2 border-t inline-block text-right min-w-[150px] ${s.licBorder}`}>
+                      {printLicences.map((lic, i) => <p key={i} className={`text-[10px] uppercase tracking-wide leading-tight mb-0.5 ${s.licText}`}>{lic.type}: <span className={`font-mono ${s.licValue}`}>{lic.number}</span></p>)}
+                      {hasInsurance && <p className={`text-[10px] uppercase tracking-wide leading-tight ${s.licText}`}>PLI ({biz.insurance}): <span className={`font-mono ${s.licValue}`}>{biz.insurancePolicy}</span></p>}
                     </div>
                   )}
                 </div>
@@ -1430,7 +1518,7 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
             </div>
           )}
 
-          <div className={`${docStyle === 'corporate' ? 'mb-8' : 'border-b-2 border-slate-300 pb-3 mb-4'}`}>
+          <div className={s.clientDivider}>
             <div className="flex justify-between items-center mb-2">
               <span className={`text-xs font-black uppercase tracking-widest ${s.labelColor}`}>{docLabel}</span>
               <div className="flex items-center gap-3">
@@ -1466,39 +1554,39 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
                       {t.pageBreak ? '↓ Page Break Before This Section' : '✂ Add Page Break'}
                     </button>
                   </div>
-                  <div className={`${docStyle === 'contractor' ? 'print-card mb-6' : 'border-b border-slate-100 pb-6 mb-4'} break-inside-avoid`}>
+                  <div className={`${s.taskCard} break-inside-avoid`}>
                     <div className={`${s.cardHeader()} flex justify-between items-center text-lg uppercase`}>
                       <input className="flex-1 font-black bg-transparent border-none outline-none" value={t.title} onChange={e => updateTask(idx, 'title', e.target.value)} placeholder="Task Title" />
                       <input className="w-20 text-sm bg-transparent border-none outline-none text-right font-bold" value={t.time} onChange={e => updateTask(idx, 'time', e.target.value)} placeholder="Time" />
                       {showCosts && subtotal > 0 && <span className="text-sm font-black ml-4">{fmtAUD(subtotal)}</span>}
                     </div>
                     <div className={s.cardBody}>
-                      <PrintEditableDiv value={t.desc} onChange={v => updateTask(idx, 'desc', v)} placeholder="Task description" className={`w-full text-[14px] text-slate-700 mb-6 border-l-4 border-slate-200 pl-4 italic font-medium bg-transparent outline-none ${!t.desc ? 'print:hidden' : ''}`} />
+                      <PrintEditableDiv value={t.desc} onChange={v => updateTask(idx, 'desc', v)} placeholder="Task description" className={`w-full text-[14px] text-slate-700 mb-6 italic font-medium bg-transparent outline-none ${s.descBorder} ${!t.desc ? 'print:hidden' : ''}`} />
 
                       <div className="grid grid-cols-2 gap-4 mb-4">
-                        <div className={`${docStyle === 'industrial' ? 'border-4 border-black p-4' : 'p-4 bg-slate-50 rounded-xl border'} ${!t.materials ? 'print:hidden' : ''}`}>
+                        <div className={`${s.matBox} ${!t.materials ? 'print:hidden' : ''}`}>
                           <label className={`text-[10px] font-black uppercase block mb-1 ${s.labelColor}`}>{matLabel}</label>
                           <PrintEditableDiv value={t.materials} onChange={v => updateTask(idx, 'materials', v)} className="text-[12px] font-bold text-slate-600 bg-transparent" placeholder={matLabel} />
                         </div>
-                        <div className={`${docStyle === 'industrial' ? 'border-4 border-black p-4' : 'p-4 bg-slate-50 rounded-xl border'} ${!t.tools ? 'print:hidden' : ''}`}>
+                        <div className={`${s.matBox} ${!t.tools ? 'print:hidden' : ''}`}>
                           <label className={`text-[10px] font-black uppercase block mb-1 ${s.labelColor}`}>{toolLabel}</label>
                           <PrintEditableDiv value={t.tools} onChange={v => updateTask(idx, 'tools', v)} className="text-[12px] font-bold text-slate-600 bg-transparent" placeholder={toolLabel} />
                         </div>
 
                         {showCosts && labour > 0 && (
-                          <div className={`${docStyle === 'industrial' ? 'border-4 border-black p-4' : 'p-4 bg-slate-50 rounded-xl border'}`}>
+                          <div className={s.matBox}>
                             <label className={`text-[10px] font-black uppercase block mb-1 ${s.labelColor}`}>Labour Cost</label>
                             <span className="text-[12px] font-bold text-slate-600">{fmtAUD(labour)}{t.rate ? ` (${getCC().symbol}${t.rate}/hr)` : ''}</span>
                           </div>
                         )}
                         {showCosts && mats > 0 && (
-                          <div className={`${docStyle === 'industrial' ? 'border-4 border-black p-4' : 'p-4 bg-slate-50 rounded-xl border'}`}>
+                          <div className={s.matBox}>
                             <label className={`text-[10px] font-black uppercase block mb-1 ${s.labelColor}`}>Materials Cost</label>
                             <span className="text-[12px] font-bold text-slate-600">{fmtAUD(mats)}</span>
                           </div>
                         )}
                       </div>
-                      {t.images?.length > 0 && <div className="print-img-container">{t.images.map((img, i) => <div key={i} className={`overflow-hidden border aspect-[4/3] shadow-sm bg-slate-100 ${docStyle === 'contractor' ? 'rounded-lg' : ''}`}><img src={img} className="w-full h-full object-cover" /></div>)}</div>}
+                      {showImages && t.images?.length > 0 && <div className="print-img-container">{t.images.map((img, i) => <div key={i} className={`overflow-hidden border aspect-[4/3] shadow-sm bg-slate-100 ${s.imgRounded}`}><img src={img} className="w-full h-full object-cover" /></div>)}</div>}
                     </div>
                   </div>
                 </div>
@@ -1508,21 +1596,21 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
 
           {showCosts && totals.total > 0 && (
             <div className={s.totalBox}>
-              <div className={docStyle === 'corporate' ? 'space-y-1' : ''}>
-                <p className={`font-black uppercase text-sm ${docStyle === 'corporate' ? 'text-slate-400' : 'text-slate-500'}`}>Labour: {fmtAUD(totals.labour)}</p>
-                <p className={`font-black uppercase text-sm ${docStyle === 'corporate' ? 'text-slate-400' : 'text-slate-500'}`}>Materials: {fmtAUD(totals.mats)}</p>
+              <div className="space-y-1">
+                <p className={s.breakdownText}>Labour: {fmtAUD(totals.labour)}</p>
+                <p className={s.breakdownText}>Materials: {fmtAUD(totals.mats)}</p>
                 {job.gstEnabled && (
-                  <div className={`mt-2 border-t pt-2 ${docStyle === 'corporate' ? 'border-slate-700' : 'border-slate-200'}`}>
-                    <p className={`font-black uppercase text-sm ${docStyle === 'corporate' ? 'text-slate-300' : 'text-slate-600'}`}>Subtotal: {fmtAUD(totals.subtotal)}</p>
-                    <p className={`font-black uppercase text-sm ${docStyle === 'corporate' ? 'text-slate-300' : 'text-slate-600'}`}>{getCC().taxLabel} ({getCC().taxRate}%): {fmtAUD(totals.gst)}</p>
+                  <div className={s.subtotalDivider}>
+                    <p className={s.breakdownSubText}>Subtotal: {fmtAUD(totals.subtotal)}</p>
+                    <p className={s.breakdownSubText}>{getCC().taxLabel} ({getCC().taxRate}%): {fmtAUD(totals.gst)}</p>
                   </div>
                 )}
-                {extraTaxRate > 0 && <p className="font-black uppercase text-purple-600 text-sm">{getCC().markupLabel} ({extraTaxRate}%): {fmtAUD(totals.extra)}</p>}
+                {extraTaxRate > 0 && <p className="font-black uppercase text-purple-400 text-sm">{getCC().markupLabel} ({extraTaxRate}%): {fmtAUD(totals.extra)}</p>}
               </div>
               <div className="text-right">
-                <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${docStyle === 'corporate' ? 'text-orange-400' : 'text-slate-400'}`}>{docStage === 'invoice' ? 'Total Due' : job.gstEnabled ? `Total inc. Tax/${getCC().taxLabel}` : 'Quotation Total'}</p>
-                <p className={`text-4xl font-black ${docStyle === 'corporate' ? 'text-white' : 'text-slate-900'}`}>{fmtAUD(totals.total)}</p>
-                {job.gstEnabled && <p className={`text-xs font-bold mt-1 ${docStyle === 'corporate' ? 'text-slate-400' : 'text-slate-400'}`}>{getCC().taxLabel} included: {fmtAUD(totals.gst)}</p>}
+                <p className={`mb-1 ${s.totalLabel}`}>{docStage === 'invoice' ? 'Total Due' : job.gstEnabled ? `Total inc. Tax/${getCC().taxLabel}` : 'Quotation Total'}</p>
+                <p className={s.totalAmount}>{fmtAUD(totals.total)}</p>
+                {job.gstEnabled && <p className={`text-xs font-bold mt-1 ${s.gstIncluded}`}>{getCC().taxLabel} included: {fmtAUD(totals.gst)}</p>}
               </div>
             </div>
           )}
@@ -1535,8 +1623,8 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
           )}
 
           {biz.termsAndConditions && (
-            <div className={`mt-12 pt-4 border-t border-slate-300 text-[10px] font-medium whitespace-pre-wrap leading-tight break-inside-avoid ${docStyle === 'corporate' ? 'text-slate-400' : 'text-slate-500'}`}>
-              <p className={`font-bold uppercase mb-1 ${docStyle === 'corporate' ? 'text-slate-300' : 'text-slate-700'}`}>Terms & Conditions</p>
+            <div className={`mt-12 pt-4 border-t border-slate-200 text-[10px] leading-tight whitespace-pre-wrap break-inside-avoid ${s.termsText}`}>
+              <p className={`uppercase mb-1 ${s.termsTitle}`}>Terms & Conditions</p>
               {biz.termsAndConditions}
             </div>
           )}
