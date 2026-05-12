@@ -17,8 +17,7 @@ export async function syncWrite(uid, key, data) {
 // Called after local load — pulls Firestore in background, returns map of updated keys
 // so the caller can refresh only what changed.
 export async function coldStartSync(uid, collections) {
-  const localTs = (await get(TS_KEY)) || {};
-  const updated = {}; // key -> new payload
+  const updated = {};
 
   for (const { key, idbKey } of collections) {
     try {
@@ -27,11 +26,15 @@ export async function coldStartSync(uid, collections) {
 
       const remote = snap.data();
       const remoteMs = remote.lastUpdated?.toMillis?.() ?? 0;
+
+      // Read timestamp fresh after the async fetch so we don't race with concurrent saves
+      const localTs = (await get(TS_KEY)) || {};
       const localMs = localTs[key] ?? 0;
 
       if (remoteMs > localMs) {
         await set(idbKey, remote.payload);
         localTs[key] = remoteMs;
+        await set(TS_KEY, localTs);
         updated[key] = remote.payload;
       }
     } catch {
@@ -39,7 +42,6 @@ export async function coldStartSync(uid, collections) {
     }
   }
 
-  await set(TS_KEY, localTs);
   return updated;
 }
 
