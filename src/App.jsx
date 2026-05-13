@@ -206,9 +206,9 @@ const BIZA_KEY = 'joblog-business';
 const MAX_STOPS = 12;
 
 const COUNTRY_CONFIGS = {
+  US: { name: 'United States', flag: '🇺🇸', currency: 'USD', symbol: '$', taxLabel: 'Sales Tax', taxRate: 0, locale: 'en-US', markupLabel: 'State / Local Tax', regLabel: 'Tax ID', invoiceLabel: 'Invoice' },
   AU: { name: 'Australia', flag: '🇦🇺', currency: 'AUD', symbol: '$', taxLabel: 'GST', taxRate: 10, locale: 'en-AU', markupLabel: 'Additional Markup', regLabel: 'ABN', invoiceLabel: 'Tax Invoice' },
   NZ: { name: 'New Zealand', flag: '🇳🇿', currency: 'NZD', symbol: '$', taxLabel: 'GST', taxRate: 15, locale: 'en-NZ', markupLabel: 'Additional Markup', regLabel: 'GST #', invoiceLabel: 'Tax Invoice' },
-  US: { name: 'United States', flag: '🇺🇸', currency: 'USD', symbol: '$', taxLabel: 'Sales Tax', taxRate: 0, locale: 'en-US', markupLabel: 'State / Local Tax', regLabel: 'Tax ID', invoiceLabel: 'Invoice' },
   CA: { name: 'Canada', flag: '🇨🇦', currency: 'CAD', symbol: '$', taxLabel: 'GST/HST', taxRate: 5, locale: 'en-CA', markupLabel: 'Provincial / Other Tax', regLabel: 'Business #', invoiceLabel: 'Invoice' },
   GB: { name: 'United Kingdom', flag: '🇬🇧', currency: 'GBP', symbol: '£', taxLabel: 'VAT', taxRate: 20, locale: 'en-GB', markupLabel: 'Additional Markup', regLabel: 'VAT Reg #', invoiceLabel: 'Tax Invoice' },
   IE: { name: 'Ireland', flag: '🇮🇪', currency: 'EUR', symbol: '€', taxLabel: 'VAT', taxRate: 23, locale: 'en-IE', markupLabel: 'Additional Markup', regLabel: 'VAT #', invoiceLabel: 'Tax Invoice' },
@@ -1255,116 +1255,116 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
   // Style Mapping
   const STYLES = {
     contractor: {
-      container: "bg-white text-slate-900 p-8 sm:p-12 shadow-2xl border-t-[10px] border-orange-500",
-      headerLine: "pb-8 mb-8 border-b-4 border-slate-900",
+      container: "bg-white text-slate-900 p-8 sm:p-12 shadow-xl",
+      headerLine: "pb-7 mb-8 border-b border-slate-200",
       accentText: "text-slate-900 font-black text-2xl tracking-tight",
-      abnText: "text-slate-500 font-mono text-xs mt-1 font-bold",
-      contactText: "text-slate-600 font-semibold",
-      labelColor: "text-orange-500 font-black uppercase tracking-wider text-[10px]",
-      cardHeader: () => docStage === 'invoice' ? 'bg-emerald-600 text-white px-5 py-3.5 font-black' : 'bg-orange-500 text-white px-5 py-3.5 font-black',
-      cardBody: "p-5 sm:p-6 border border-t-0 border-slate-200 mb-6",
-      totalBox: "mt-10 bg-slate-900 text-white p-8 sm:p-10 -mx-8 sm:-mx-12 -mb-8 sm:-mb-12 flex justify-between items-end",
+      abnText: "text-slate-400 font-mono text-xs mt-1",
+      contactText: "text-slate-500 font-medium",
+      labelColor: "text-orange-500 font-bold uppercase tracking-widest text-[10px]",
+      cardHeader: () => docStage === 'invoice' ? 'bg-emerald-50 border-l-4 border-emerald-500 text-slate-900 px-5 py-3.5 font-black rounded-t-xl' : 'bg-orange-50 border-l-4 border-orange-500 text-slate-900 px-5 py-3.5 font-black rounded-t-xl',
+      cardBody: "p-5 sm:p-6 border border-t-0 border-slate-100 rounded-b-xl mb-5",
+      totalBox: "mt-10 bg-slate-950 text-white p-8 sm:p-10 -mx-8 sm:-mx-12 -mb-8 sm:-mb-12 flex justify-between items-end",
       fontFamily: "font-sans",
       licBorder: "border-slate-200",
-      licText: "text-slate-500",
-      licValue: "text-slate-900 font-black",
-      clientDivider: "border-b-2 border-slate-200 pb-5 mb-6",
-      breakdownText: "font-black uppercase text-sm text-slate-400",
-      breakdownSubText: "font-black uppercase text-sm text-slate-300",
-      subtotalDivider: "mt-2 border-t border-slate-700 pt-2",
-      totalLabel: "text-orange-400 font-black uppercase tracking-widest text-[10px]",
-      totalAmount: "text-white text-4xl font-black",
-      gstIncluded: "text-slate-400",
-      termsText: "text-slate-500",
-      termsTitle: "text-slate-700 font-bold uppercase",
-      taskCard: "print-card mb-6",
-      matBox: "p-4 bg-slate-50 rounded-xl border border-slate-200",
-      imgRounded: "rounded-lg",
-      descBorder: "border-l-4 border-orange-200 pl-4",
-    },
-    boutique: {
-      container: "bg-[#fefcf8] text-slate-700 p-10 sm:p-16 shadow-xl border border-[#e8ddd0]",
-      headerLine: "pb-10 mb-12 border-b border-[#d9cec0]",
-      accentText: "text-slate-800 text-2xl font-light tracking-[0.08em]",
-      abnText: "text-[#a89880] font-mono text-xs mt-1",
-      contactText: "text-[#9c8c7e] font-light",
-      labelColor: "text-[#b8a890] uppercase tracking-[0.2em] text-[9px] font-medium",
-      cardHeader: () => "border-b border-[#d9cec0] text-slate-600 font-medium tracking-[0.12em] uppercase text-sm bg-transparent px-0 py-4",
-      cardBody: "py-6 px-0 border-b border-[#ede5d8] mb-8",
-      totalBox: "mt-14 bg-white rounded-2xl border border-[#e8ddd0] shadow-sm p-10 sm:p-12 flex justify-between items-end",
-      fontFamily: "font-serif",
-      licBorder: "border-[#d9cec0]",
-      licText: "text-[#b8a890]",
-      licValue: "text-slate-600 font-semibold",
-      clientDivider: "border-b border-[#e8ddd0] pb-8 mb-10",
-      breakdownText: "font-medium uppercase tracking-wider text-xs text-[#b8a890]",
-      breakdownSubText: "font-medium uppercase tracking-wider text-xs text-slate-500",
-      subtotalDivider: "mt-2 border-t border-[#e8ddd0] pt-2",
-      totalLabel: "text-[#b8a890] uppercase tracking-[0.2em] text-[9px] font-medium",
-      totalAmount: "text-slate-800 text-4xl font-light tracking-tight",
-      gstIncluded: "text-[#b8a890]",
-      termsText: "text-[#a89880]",
-      termsTitle: "text-slate-500 font-medium uppercase tracking-widest",
-      taskCard: "border-b border-[#e8ddd0] pb-8 mb-8",
-      matBox: "py-4 border-b border-[#e8ddd0]",
-      imgRounded: "rounded-none",
-      descBorder: "border-l-2 border-[#d9cec0] pl-4",
-    },
-    corporate: {
-      container: "bg-white text-slate-900 p-6 sm:p-12 shadow-md border border-slate-100",
-      headerLine: "bg-[#0f2044] text-white p-8 sm:p-12 -mx-6 sm:-mx-12 -mt-6 sm:-mt-12 mb-10",
-      accentText: "text-white font-bold text-2xl tracking-tight",
-      abnText: "text-slate-300 font-mono text-xs mt-1",
-      contactText: "text-slate-300 font-medium",
-      labelColor: "text-blue-600 font-bold uppercase text-[10px] tracking-wider",
-      cardHeader: () => "bg-slate-50 text-slate-800 border-l-4 border-blue-600 px-5 py-4 font-bold text-sm uppercase tracking-wide",
-      cardBody: "p-5 sm:p-6 bg-white border border-slate-100 border-t-0 mb-6",
-      totalBox: "mt-10 bg-[#0f2044] text-white p-8 sm:p-12 -mx-6 sm:-mx-12 -mb-6 sm:-mb-12 flex justify-between items-end",
-      fontFamily: "font-sans",
-      licBorder: "border-slate-600",
       licText: "text-slate-400",
-      licValue: "text-white font-mono",
-      clientDivider: "border-b-2 border-slate-100 pb-4 mb-6",
-      breakdownText: "font-bold uppercase text-sm text-slate-400",
-      breakdownSubText: "font-bold uppercase text-sm text-slate-300",
-      subtotalDivider: "mt-2 border-t border-[#1a3060] pt-2",
-      totalLabel: "text-blue-300 font-bold uppercase tracking-widest text-[10px]",
+      licValue: "text-slate-800 font-bold",
+      clientDivider: "border-b border-slate-100 pb-5 mb-7",
+      breakdownText: "font-semibold text-sm text-slate-400",
+      breakdownSubText: "font-semibold text-sm text-slate-300",
+      subtotalDivider: "mt-2 border-t border-slate-700 pt-2",
+      totalLabel: "text-orange-400 font-bold uppercase tracking-widest text-[10px]",
       totalAmount: "text-white text-4xl font-black",
       gstIncluded: "text-slate-400",
       termsText: "text-slate-400",
-      termsTitle: "text-slate-300 font-bold uppercase",
-      taskCard: "mb-6",
-      matBox: "p-5 bg-slate-50 border border-slate-100 rounded",
+      termsTitle: "text-slate-500 font-bold uppercase text-[10px] tracking-wider",
+      taskCard: "print-card mb-5",
+      matBox: "p-4 bg-slate-50 rounded-xl",
+      imgRounded: "rounded-xl",
+      descBorder: "border-l-2 border-orange-200 pl-4",
+    },
+    boutique: {
+      container: "bg-[#FAFAF8] text-[#2A2220] p-10 sm:p-16",
+      headerLine: "pb-10 mb-12 border-b border-[#DDD5C8]",
+      accentText: "text-[#2A2220] text-2xl font-light tracking-[0.04em]",
+      abnText: "text-[#9A8878] text-xs mt-1",
+      contactText: "text-[#7A6B5D] font-light text-sm",
+      labelColor: "text-[#8B7355] uppercase tracking-[0.2em] text-[9px] font-semibold",
+      cardHeader: () => "border-t-2 border-[#2A2220] text-[#2A2220] font-semibold tracking-[0.1em] text-sm uppercase px-0 py-5 bg-transparent",
+      cardBody: "py-6 px-0 border-b border-[#E8DDD0] mb-10",
+      totalBox: "mt-16 bg-[#2A2220] text-white p-10 sm:p-12 rounded-2xl flex justify-between items-end",
+      fontFamily: "font-sans",
+      licBorder: "border-[#DDD5C8]",
+      licText: "text-[#9A8878]",
+      licValue: "text-[#2A2220] font-semibold",
+      clientDivider: "border-b border-[#E8DDD0] pb-10 mb-12",
+      breakdownText: "font-medium text-sm text-[#9A8878] tracking-wide",
+      breakdownSubText: "font-medium text-sm text-[#B8A898]",
+      subtotalDivider: "mt-2 border-t border-[#4A3830] pt-2",
+      totalLabel: "text-[#C8A878] uppercase tracking-[0.2em] text-[9px] font-semibold",
+      totalAmount: "text-white text-4xl font-light tracking-tight",
+      gstIncluded: "text-[#9A8878]",
+      termsText: "text-[#9A8878]",
+      termsTitle: "text-[#7A6B5D] font-semibold uppercase tracking-[0.15em] text-[10px]",
+      taskCard: "mb-10",
+      matBox: "py-4 border-b border-[#E8DDD0]",
       imgRounded: "rounded-none",
-      descBorder: "border-l-4 border-blue-100 pl-4",
+      descBorder: "border-l border-[#C8B8A8] pl-6",
+    },
+    corporate: {
+      container: "bg-white text-slate-900 p-6 sm:p-12",
+      headerLine: "bg-[#1A2332] text-white p-8 sm:p-12 -mx-6 sm:-mx-12 -mt-6 sm:-mt-12 mb-10",
+      accentText: "text-white font-bold text-2xl",
+      abnText: "text-slate-400 font-mono text-xs mt-1",
+      contactText: "text-slate-300 text-sm",
+      labelColor: "text-sky-500 font-bold uppercase text-[10px] tracking-widest",
+      cardHeader: () => docStage === 'invoice' ? 'bg-emerald-50 text-slate-800 border-b-2 border-emerald-500 px-5 py-4 font-bold text-sm uppercase tracking-wide' : 'bg-sky-50 text-slate-800 border-b-2 border-sky-500 px-5 py-4 font-bold text-sm uppercase tracking-wide',
+      cardBody: "p-5 sm:p-6 bg-white border border-t-0 border-slate-100 mb-6 rounded-b-xl",
+      totalBox: "mt-10 bg-[#1A2332] text-white p-8 sm:p-12 -mx-6 sm:-mx-12 -mb-6 sm:-mb-12 flex justify-between items-end",
+      fontFamily: "font-sans",
+      licBorder: "border-slate-600",
+      licText: "text-slate-400",
+      licValue: "text-white font-semibold",
+      clientDivider: "border-b border-slate-100 pb-4 mb-6",
+      breakdownText: "font-semibold text-sm text-slate-400",
+      breakdownSubText: "font-semibold text-sm text-slate-300",
+      subtotalDivider: "mt-2 border-t border-[#2A3A52] pt-2",
+      totalLabel: "text-sky-300 font-bold uppercase tracking-widest text-[10px]",
+      totalAmount: "text-white text-4xl font-black",
+      gstIncluded: "text-slate-400",
+      termsText: "text-slate-400",
+      termsTitle: "text-slate-300 font-bold uppercase text-[10px] tracking-wider",
+      taskCard: "mb-6 rounded-xl overflow-hidden border border-slate-100",
+      matBox: "p-5 bg-slate-50 rounded-xl",
+      imgRounded: "rounded-lg",
+      descBorder: "border-l-4 border-sky-100 pl-4",
     },
     industrial: {
-      container: "bg-white text-black p-4 sm:p-8 border-[6px] border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]",
-      headerLine: "bg-yellow-400 text-black p-6 sm:p-8 border-b-[6px] border-black -mx-4 sm:-mx-8 -mt-4 sm:-mt-8 mb-8",
-      accentText: "text-black font-black text-2xl uppercase tracking-widest",
-      abnText: "text-black font-mono font-black text-xs mt-1",
-      contactText: "text-black font-bold",
-      labelColor: "text-black font-black uppercase tracking-widest text-[10px]",
-      cardHeader: () => "bg-black text-yellow-400 px-5 py-3.5 font-black uppercase tracking-widest",
-      cardBody: "p-5 sm:p-6 border-[3px] border-t-0 border-black bg-white mb-6",
-      totalBox: "mt-8 bg-yellow-400 text-black border-[6px] border-black p-6 sm:p-8 -mx-4 sm:-mx-8 -mb-4 sm:-mb-8 flex justify-between items-end",
+      container: "bg-[#F8F9FA] text-slate-900 p-6 sm:p-10",
+      headerLine: "bg-[#1C2333] text-white p-6 sm:p-10 -mx-6 sm:-mx-10 -mt-6 sm:-mt-10 mb-10",
+      accentText: "text-white font-black text-2xl tracking-tight",
+      abnText: "text-slate-400 font-mono text-xs mt-1",
+      contactText: "text-slate-300 font-medium text-sm",
+      labelColor: "text-slate-500 font-black uppercase tracking-widest text-[10px]",
+      cardHeader: () => docStage === 'invoice' ? 'bg-[#1C2333] text-white px-5 py-4 font-black text-sm uppercase tracking-widest' : 'bg-[#2D3748] text-white px-5 py-4 font-black text-sm uppercase tracking-widest',
+      cardBody: "p-5 sm:p-6 border-l-4 border-[#2D3748] border-b border-r border-slate-200 bg-white mb-6",
+      totalBox: "mt-8 bg-[#1C2333] text-white p-6 sm:p-10 -mx-6 sm:-mx-10 -mb-6 sm:-mb-10 flex justify-between items-end",
       fontFamily: "font-mono",
-      licBorder: "border-black",
-      licText: "text-black font-bold",
-      licValue: "text-black font-black",
-      clientDivider: "border-b-[4px] border-black pb-4 mb-6",
-      breakdownText: "font-black uppercase text-sm text-black",
-      breakdownSubText: "font-black uppercase text-sm text-black",
-      subtotalDivider: "mt-2 border-t-4 border-black pt-2",
-      totalLabel: "text-black font-black uppercase tracking-widest text-[10px]",
-      totalAmount: "text-black text-4xl font-black",
-      gstIncluded: "text-black font-bold",
-      termsText: "text-black font-bold",
-      termsTitle: "text-black font-black uppercase",
+      licBorder: "border-slate-600",
+      licText: "text-slate-400",
+      licValue: "text-white font-bold",
+      clientDivider: "border-b-2 border-[#1C2333] pb-4 mb-6",
+      breakdownText: "font-bold text-sm text-slate-400 uppercase tracking-wide",
+      breakdownSubText: "font-bold text-sm text-slate-300 uppercase tracking-wide",
+      subtotalDivider: "mt-2 border-t border-slate-600 pt-2",
+      totalLabel: "text-slate-400 font-black uppercase tracking-widest text-[10px]",
+      totalAmount: "text-white text-4xl font-black",
+      gstIncluded: "text-slate-400 font-bold",
+      termsText: "text-slate-500",
+      termsTitle: "text-slate-700 font-black uppercase tracking-widest text-[10px]",
       taskCard: "mb-6",
-      matBox: "border-[3px] border-black p-4",
+      matBox: "p-4 border border-slate-200 bg-white",
       imgRounded: "rounded-none",
-      descBorder: "border-l-4 border-black pl-4",
+      descBorder: "border-l-4 border-slate-300 pl-4",
     }
   };
 
@@ -1434,16 +1434,13 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
             <h2 className="text-lg font-extrabold text-slate-800 dark:text-white">Preview</h2>
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
-            <button onClick={() => setSignatureEnabled(!signatureEnabled)} className={`h-9 px-3 rounded-lg font-semibold flex items-center gap-1.5 text-xs transition-colors border ${signatureEnabled ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900/60' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'}`}>
-              <Edit3 size={13} /> Sign
-            </button>
-            <button onClick={() => window.print()} className="h-9 px-3 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg font-semibold flex items-center gap-1.5 text-xs transition-colors hover:bg-slate-50 dark:hover:bg-slate-700"><Printer size={13} /> Print</button>
+            <button onClick={() => window.print()} className="h-9 px-3 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg font-semibold flex items-center gap-1.5 text-xs transition-colors hover:bg-slate-50 dark:hover:bg-slate-700"><Printer size={13} /> Preview and Save</button>
             <button onClick={handleEmail} className="h-9 px-3 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg font-semibold flex items-center gap-1.5 text-xs transition-colors hover:bg-slate-50 dark:hover:bg-slate-700"><Mail size={13} /> Email</button>
             {job.clientPhone && (
               <button onClick={handleSMS} className="h-9 px-3 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg font-semibold flex items-center gap-1.5 text-xs transition-colors hover:bg-slate-50 dark:hover:bg-slate-700"><MessageSquare size={13} /> SMS</button>
             )}
             <button onClick={handleSharePDF} disabled={isGeneratingPDF} className="h-9 px-3.5 bg-orange-500 hover:bg-orange-400 text-white rounded-lg font-bold flex items-center gap-1.5 text-xs transition-colors shadow-sm disabled:opacity-60">
-              {isGeneratingPDF ? <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Send size={13} />} Send PDF
+              {isGeneratingPDF ? <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Send size={13} />} Share PDF
             </button>
           </div>
         </div>
@@ -1467,6 +1464,9 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
                 <button onClick={() => setShowImages(v => !v)} className={`h-8 px-3 rounded-lg text-[11px] font-black border-2 transition-all flex items-center gap-1.5 ${showImages ? 'bg-slate-900 dark:bg-white border-slate-900 dark:border-white text-white dark:text-slate-900' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-600 text-slate-400'}`}>
                   <ImageIcon size={11} /> Photos
                 </button>
+                <button onClick={() => setSignatureEnabled(!signatureEnabled)} className={`h-8 px-3 rounded-lg text-[11px] font-black border-2 transition-all flex items-center gap-1.5 ${signatureEnabled ? 'bg-slate-900 dark:bg-white border-slate-900 dark:border-white text-white dark:text-slate-900' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-600 text-slate-400'}`}>
+                  <Edit3 size={11} /> Sign
+                </button>
               </div>
             </div>
           </div>
@@ -1475,9 +1475,9 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
             <div className="grid grid-cols-4 gap-2">
               {[
                 { val: 'contractor', label: 'Contractor', preview: 'bg-orange-500' },
-                { val: 'boutique', label: 'Boutique', preview: 'bg-[#b8a890]' },
-                { val: 'corporate', label: 'Corporate', preview: 'bg-[#0f2044]' },
-                { val: 'industrial', label: 'Industrial', preview: 'bg-yellow-400 border-black' },
+                { val: 'boutique', label: 'Boutique', preview: 'bg-[#8B7355]' },
+                { val: 'corporate', label: 'Corporate', preview: 'bg-[#1A2332]' },
+                { val: 'industrial', label: 'Industrial', preview: 'bg-[#2D3748]' },
               ].map(({ val, label, preview }) => {
                 const isActive = docStyle === val;
                 return (
@@ -2095,7 +2095,7 @@ const JimLivePanel = ({ status, transcript, onClose, onMicTap }) => {
         <div className="flex justify-between items-center px-5 pt-5 pb-3 border-b border-slate-800 flex-shrink-0">
           <div className="flex items-center gap-2.5">
             <div className={`w-2.5 h-2.5 rounded-full ${dotColor}`} />
-            <h2 className="text-white font-black text-sm tracking-tight uppercase">Voice Mode - BETA </h2>
+            <h2 className="text-white font-black text-sm tracking-tight uppercase">WHATS NEXT JIM - BETA </h2>
             <span className={`text-xs font-bold uppercase ${statusColor}`}>{statusLabel[status] || '...'}</span>
           </div>
           <div className="flex items-center gap-2">
@@ -2148,7 +2148,7 @@ const JimLivePanel = ({ status, transcript, onClose, onMicTap }) => {
       <div className="flex justify-between items-center px-1">
         <div className="flex items-center gap-2">
           <div className={`w-2.5 h-2.5 rounded-full ${dotColor}`} />
-          <h2 className="text-white font-black text-sm tracking-tight uppercase">Voice Mode - BETA</h2>
+          <h2 className="text-white font-black text-sm tracking-tight uppercase">WHATS NEXT JIM - BETA</h2>
         </div>
         <div className="flex items-center gap-1.5">
           <button onClick={() => setExpanded(true)} className="text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 p-1.5 rounded-full transition-colors" title="Expand">
@@ -2929,12 +2929,15 @@ FILTER TABS (on the dashboard):
 - Clients: a summary view grouped by client name.
 
 PDF / DOCUMENTS:
-- Open a job, then tap the "PDF" button in the top-right corner.
-- This opens a print preview of the Quotation or Completion Invoice.
+- Open a job, then tap the "PREVIEW" button in the top-right corner.
+- This opens a live preview of the Quotation or Completion Invoice.
 - You can edit the document title, notes, and line items directly in the preview.
 - "Ask AI" inside the preview will rewrite the whole document professionally based on the job data.
-- Share as PDF via the share button — works with WhatsApp, email, AirDrop, etc.
-- To print, use your browser's print function from the preview.
+- The options toolbar lets you toggle Header, Photos, and Sign (signature block) on or off.
+- Switch between Quote and Invoice stage, and pick from 4 style themes (Contractor, Boutique, Corporate, Industrial).
+- Share as PDF via the orange "Share PDF" button — works with WhatsApp, email, AirDrop, etc.
+- Use "Preview and Save" to open the browser print/save dialog for saving as PDF locally.
+- Email and SMS buttons pre-fill a message with the job details.
 - Invoice numbers: tap "Generate invoice number" inside the job to auto-assign one (INV-YEAR-XXX).
 - ${cc.taxLabel} toggle: turn it on or off per job. When on, ${cc.taxLabel} is calculated and shown on the document.
 
@@ -3634,7 +3637,7 @@ Return ONLY a valid JSON object. Format: {"cost": 123.45, "items": "Hammer\\nNai
           {viewMode === 'detail' && activeJob && (
             <>
               <button onClick={handleShare} aria-label="Share" className="w-10 h-10 flex items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-full text-slate-600 dark:text-slate-300 active:scale-95 transition-transform"><Share2 size={16} /></button>
-              <button onClick={() => setPrintPreviewJob(activeJob)} className="flex items-center gap-1.5 h-10 px-3.5 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-xl font-bold text-xs active:scale-95 shadow-sm"><Printer size={14} /> PDF</button>
+              <button onClick={() => setPrintPreviewJob(activeJob)} className="flex items-center gap-1.5 h-10 px-3.5 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-xl font-bold text-xs active:scale-95 shadow-sm"><Printer size={14} /> PREVIEW</button>
             </>
           )}
           <div className="relative">
