@@ -1473,7 +1473,7 @@ const PDF_THEMES = {
   },
 };
 
-const renderJobPdf = async ({ job, biz, header, tasks, totals, totalHours, cc, docStage, docStyle, signatureData, showImages, showBusinessHeader, showCosts, extraTaxRate, docNumber }) => {
+const renderJobPdf = async ({ job, biz, header, tasks, totals, totalHours, cc, docStage, docStyle, signatureData, showImages, showBusinessHeader, showCosts, extraTaxRate, docNumber, groupPhotosByTask }) => {
   const { default: jsPDF } = await import('jspdf');
   const { default: autoTable } = await import('jspdf-autotable');
 
@@ -1496,7 +1496,8 @@ const renderJobPdf = async ({ job, biz, header, tasks, totals, totalHours, cc, d
     if (y + needed > pageH - margin) { doc.addPage(); y = margin; }
   };
 
-  const docLabel = docStage === 'invoice' ? (cc.invoiceLabel || 'Invoice') : 'Quotation';
+  const docLabel = docStage === 'receipt' ? 'Receipt' : (docStage === 'invoice' ? (cc.invoiceLabel || 'Invoice') : 'Quotation');
+  const isPostPayment = docStage === 'receipt';
   const fmtMoney = (n) => `${cc.symbol}${(n || 0).toFixed(2)}`;
   const fmtMinsLocal = (m) => { const h = Math.floor(m / 60); const r = Math.round(m % 60); return r ? `${h}h ${r}m` : `${h}h`; };
   const fmtDateLocal = (iso) => iso ? new Date(iso).toLocaleDateString(cc.locale, { day: 'numeric', month: 'short', year: 'numeric' }) : '';
@@ -1578,7 +1579,12 @@ const renderJobPdf = async ({ job, biz, header, tasks, totals, totalHours, cc, d
     const days = parseInt(biz.quoteValidity || '30', 10);
     if (days) { const d = new Date(header.date); d.setDate(d.getDate() + days); metaLine('Valid until', fmtDateLocal(d)); }
   }
-  if (header.dueDate) metaLine(docStage === 'invoice' ? 'Due' : 'Target date', fmtDateLocal(header.dueDate));
+  if (isPostPayment) {
+    if (header.paidDate) metaLine('Paid on', fmtDateLocal(header.paidDate));
+    if (header.paymentMethod) metaLine('Method', header.paymentMethod);
+  } else if (header.dueDate) {
+    metaLine(docStage === 'invoice' ? 'Due' : 'Target date', fmtDateLocal(header.dueDate));
+  }
   if (header.clientRef) metaLine('Reference', header.clientRef);
 
   y = Math.max(y + 18, metaY) + 4;
@@ -1608,7 +1614,7 @@ const renderJobPdf = async ({ job, biz, header, tasks, totals, totalHours, cc, d
 
   const leftEnd = writeBlock(margin, 'From', fromLines);
   y = colY;
-  const rightEnd = writeBlock(margin + colW + 8, docStage === 'invoice' ? 'Bill To' : 'Prepared For', billLines);
+  const rightEnd = writeBlock(margin + colW + 8, isPostPayment ? 'Issued To' : (docStage === 'invoice' ? 'Bill To' : 'Prepared For'), billLines);
   y = Math.max(leftEnd, rightEnd) + 4;
 
   // Project notes
@@ -1697,7 +1703,7 @@ const renderJobPdf = async ({ job, biz, header, tasks, totals, totalHours, cc, d
     setColor(theme.totalsAccent);
     doc.setFontSize(7);
     doc.setFont(theme.fontFamily, 'bold');
-    doc.text((docStage === 'invoice' ? 'TOTAL DUE' : (job.gstEnabled ? `TOTAL INC. ${cc.taxLabel}` : 'QUOTATION TOTAL')), pageW - margin - 4, y + 8, { align: 'right' });
+    doc.text((isPostPayment ? 'AMOUNT PAID' : (docStage === 'invoice' ? 'TOTAL DUE' : (job.gstEnabled ? `TOTAL INC. ${cc.taxLabel}` : 'QUOTATION TOTAL'))), pageW - margin - 4, y + 8, { align: 'right' });
     setColor(theme.totalsText);
     doc.setFontSize(22);
     doc.text(fmtMoney(totals.total), pageW - margin - 4, y + 20, { align: 'right' });
@@ -1710,13 +1716,33 @@ const renderJobPdf = async ({ job, biz, header, tasks, totals, totalHours, cc, d
     y += boxH + 6;
   }
 
+  // ===== Receipt PAID stamp =====
+  if (isPostPayment) {
+    ensureSpace(28);
+    const stampW = 78, stampH = 24;
+    const sx = pageW - margin - stampW;
+    setColor([16, 185, 129], 'draw');
+    doc.setLineWidth(1.5);
+    doc.roundedRect(sx, y, stampW, stampH, 3, 3);
+    setColor([16, 185, 129]);
+    doc.setFont(theme.fontFamily, 'bold');
+    doc.setFontSize(22);
+    doc.text('PAID', sx + stampW / 2, y + 13, { align: 'center' });
+    doc.setFontSize(7);
+    setColor(theme.muted);
+    doc.setFont(theme.fontFamily, 'normal');
+    const stampLine = [header.paidDate ? fmtDateLocal(header.paidDate) : '', header.paymentMethod || ''].filter(Boolean).join(' · ');
+    if (stampLine) doc.text(stampLine, sx + stampW / 2, y + 19, { align: 'center' });
+    y += stampH + 6;
+  }
+
   // ===== 6. Payment terms + bank details =====
   const hasBankDetails = docStage === 'invoice' && biz.bankName && biz.accountName && biz.accountNumber;
-  if (biz.paymentTerms || hasBankDetails) {
+  if ((biz.paymentTerms && !isPostPayment) || hasBankDetails) {
     ensureSpace(28);
     const halfW = (contentW - 6) / 2;
     let leftY = y, rightY = y;
-    if (biz.paymentTerms) {
+    if (biz.paymentTerms && !isPostPayment) {
       setColor(theme.accent, 'draw');
       doc.setLineWidth(1.2);
       doc.line(margin, y, margin, y + 20);
@@ -1761,35 +1787,58 @@ const renderJobPdf = async ({ job, biz, header, tasks, totals, totalHours, cc, d
   }
 
   // ===== 7. Photos + signature section =====
-  const allPhotos = [];
-  if (showImages) {
-    (header.projectPhotos || []).forEach(p => allPhotos.push(p));
-    tasks.forEach(t => (t.images || []).forEach(p => allPhotos.push(p)));
-  }
-  if (allPhotos.length > 0 || signatureData) {
+  const projectPhotos = showImages ? (header.projectPhotos || []) : [];
+  const tasksWithPhotos = showImages ? tasks.filter(t => (t.images || []).length > 0) : [];
+  const totalPhotoCount = projectPhotos.length + tasksWithPhotos.reduce((a, t) => a + t.images.length, 0);
+
+  const renderPhotoGrid = (photos) => {
+    const cols = 2;
+    const gap = 4;
+    const cellW = (contentW - gap * (cols - 1)) / cols;
+    const cellH = cellW * 0.75;
+    let col = 0;
+    for (const photo of photos) {
+      if (y + cellH > pageH - margin) { doc.addPage(); y = margin; col = 0; }
+      const x = margin + col * (cellW + gap);
+      try { doc.addImage(photo, 'JPEG', x, y, cellW, cellH, undefined, 'MEDIUM'); } catch (e) { /* skip */ }
+      col++;
+      if (col >= cols) { col = 0; y += cellH + gap; }
+    }
+    if (col !== 0) y += cellH + gap;
+  };
+
+  if (totalPhotoCount > 0 || signatureData) {
     doc.addPage(); y = margin;
     setColor(theme.text);
     doc.setFont(theme.fontFamily, 'bold');
     doc.setFontSize(14);
-    doc.text(signatureData && allPhotos.length === 0 ? 'Client Signature' : (allPhotos.length > 0 && signatureData ? 'Photos & Signature' : 'Job Photos'), margin, y + 5);
+    doc.text(signatureData && totalPhotoCount === 0 ? 'Client Signature' : (totalPhotoCount > 0 && signatureData ? 'Photos & Signature' : 'Job Photos'), margin, y + 5);
     y += 12;
 
-    if (allPhotos.length > 0) {
-      const cols = 2;
-      const gap = 4;
-      const cellW = (contentW - gap * (cols - 1)) / cols;
-      const cellH = cellW * 0.75;
-      let col = 0;
-      for (const photo of allPhotos) {
-        if (y + cellH > pageH - margin) { doc.addPage(); y = margin; col = 0; }
-        const x = margin + col * (cellW + gap);
-        try {
-          doc.addImage(photo, 'JPEG', x, y, cellW, cellH, undefined, 'MEDIUM');
-        } catch (e) { /* skip bad image */ }
-        col++;
-        if (col >= cols) { col = 0; y += cellH + gap; }
+    if (groupPhotosByTask && totalPhotoCount > 0) {
+      if (projectPhotos.length > 0) {
+        ensureSpace(10);
+        setColor(theme.accent);
+        doc.setFont(theme.fontFamily, 'bold');
+        doc.setFontSize(9);
+        doc.text('PROJECT PHOTOS', margin, y);
+        y += 5;
+        renderPhotoGrid(projectPhotos);
+        y += 3;
       }
-      if (col !== 0) y += cellH + gap;
+      for (const t of tasksWithPhotos) {
+        ensureSpace(12);
+        setColor(theme.accent);
+        doc.setFont(theme.fontFamily, 'bold');
+        doc.setFontSize(9);
+        doc.text(String(t.title || 'Task').toUpperCase(), margin, y);
+        y += 5;
+        renderPhotoGrid(t.images);
+        y += 3;
+      }
+    } else if (totalPhotoCount > 0) {
+      const flat = [...projectPhotos, ...tasksWithPhotos.flatMap(t => t.images || [])];
+      renderPhotoGrid(flat);
     }
 
     if (signatureData) {
@@ -1849,7 +1898,8 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
   const defaultDocNumber = (kind) => {
     const yr = new Date(job.date || Date.now()).getFullYear();
     const tail = String(job.id || '').replace(/-/g, '').slice(-4).toUpperCase() || '0001';
-    return `${kind === 'invoice' ? 'INV' : 'QUO'}-${yr}-${tail}`;
+    const prefix = kind === 'invoice' ? 'INV' : kind === 'receipt' ? 'REC' : 'QUO';
+    return `${prefix}-${yr}-${tail}`;
   };
   const [header, setHeader] = useState({
     address: job.address, clientName: job.clientName, clientRef: job.clientRef || '',
@@ -1857,6 +1907,9 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
     dueDate: job.dueDate || '', projectNotes: job.projectNotes || '', projectPhotos: job.projectPhotos || [],
     quoteNumber: job.quoteNumber || defaultDocNumber('quote'),
     invoiceNumber: job.invoiceNumber || defaultDocNumber('invoice'),
+    receiptNumber: job.receiptNumber || defaultDocNumber('receipt'),
+    paidDate: job.paidDate || (job.paidAt ? new Date(job.paidAt).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10)),
+    paymentMethod: job.paymentMethod || 'Bank transfer',
   });
   const [signatureEnabled, setSignatureEnabled] = useState(job.showSignature || false);
   const [signatureData, setSignatureData] = useState(job.signature || null);
@@ -1867,8 +1920,9 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
   const [docStyle, setDocStyle] = useState('contractor');
   const [showBusinessHeader, setShowBusinessHeader] = useState(true);
   const [showImages, setShowImages] = useState(true);
+  const [groupPhotosByTask, setGroupPhotosByTask] = useState(false);
 
-  useEffect(() => { onUpdateJob({ ...job, tasks, date: new Date(header.date).toISOString(), showSignature: signatureEnabled, signature: signatureData, quoteNumber: header.quoteNumber, invoiceNumber: header.invoiceNumber }); }, [header.date, header.dueDate, header.quoteNumber, header.invoiceNumber, signatureEnabled, signatureData, tasks]);
+  useEffect(() => { onUpdateJob({ ...job, tasks, date: new Date(header.date).toISOString(), showSignature: signatureEnabled, signature: signatureData, quoteNumber: header.quoteNumber, invoiceNumber: header.invoiceNumber, receiptNumber: header.receiptNumber, paidDate: header.paidDate, paymentMethod: header.paymentMethod }); }, [header.date, header.dueDate, header.quoteNumber, header.invoiceNumber, header.receiptNumber, header.paidDate, header.paymentMethod, signatureEnabled, signatureData, tasks]);
 
   const updateTask = (index, field, value) => { const updated = [...tasks]; updated[index] = { ...updated[index], [field]: value }; setTasks(updated); };
   const totals = getQuoteTotals(tasks, job.gstEnabled, extraTaxRate);
@@ -1877,11 +1931,12 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
   const biz = businessProfile;
 
   const cc = getCC();
-  const docLabel = docStage === 'invoice' ? cc.invoiceLabel : 'Quotation';
-  const matLabel = docStage === 'invoice' ? 'Materials Used' : 'Materials Needed';
-  const toolLabel = docStage === 'invoice' ? 'Tools Used' : 'Tools Needed';
+  const docLabel = docStage === 'receipt' ? 'Receipt' : (docStage === 'invoice' ? cc.invoiceLabel : 'Quotation');
+  const matLabel = docStage === 'quote' ? 'Materials Needed' : 'Materials Used';
+  const toolLabel = docStage === 'quote' ? 'Tools Needed' : 'Tools Used';
 
-  const docNumber = docStage === 'invoice' ? header.invoiceNumber : header.quoteNumber;
+  const docNumber = docStage === 'receipt' ? header.receiptNumber : (docStage === 'invoice' ? header.invoiceNumber : header.quoteNumber);
+  const docNumberField = docStage === 'receipt' ? 'receiptNumber' : (docStage === 'invoice' ? 'invoiceNumber' : 'quoteNumber');
 
   const validUntil = (() => {
     if (docStage !== 'quote') return '';
@@ -2018,7 +2073,7 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
     docStage, docStyle,
     signatureData: signatureEnabled ? signatureData : null,
     showImages, showBusinessHeader, showCosts, extraTaxRate,
-    docNumber,
+    docNumber, groupPhotosByTask,
   });
 
   const pdfFilename = () => `${(header.clientName || job.clientName || 'Job').replace(/[^a-z0-9-]+/gi, '_')}-${docNumber || formatLocal(header.date, 'short')}.pdf`;
@@ -2107,8 +2162,9 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
             <div className="flex flex-col gap-2">
               <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Document Stage</label>
               <div className="flex p-1 bg-slate-100 dark:bg-slate-900 rounded-xl">
-                <button onClick={() => setDocStage('quote')} className={`px-5 py-1.5 rounded-lg text-xs font-bold transition-all ${docStage === 'quote' ? 'bg-white dark:bg-slate-800 text-orange-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Quote</button>
-                <button onClick={() => setDocStage('invoice')} className={`px-5 py-1.5 rounded-lg text-xs font-bold transition-all ${docStage === 'invoice' ? 'bg-white dark:bg-slate-800 text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Invoice</button>
+                <button onClick={() => setDocStage('quote')} className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${docStage === 'quote' ? 'bg-white dark:bg-slate-800 text-orange-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Quote</button>
+                <button onClick={() => setDocStage('invoice')} className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${docStage === 'invoice' ? 'bg-white dark:bg-slate-800 text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Invoice</button>
+                <button onClick={() => setDocStage('receipt')} className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${docStage === 'receipt' ? 'bg-white dark:bg-slate-800 text-sky-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Receipt</button>
               </div>
             </div>
             <div className="flex flex-col gap-2">
@@ -2120,6 +2176,11 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
                 <button onClick={() => setShowImages(v => !v)} className={`h-8 px-3 rounded-lg text-[11px] font-black border-2 transition-all flex items-center gap-1.5 ${showImages ? 'bg-slate-900 dark:bg-white border-slate-900 dark:border-white text-white dark:text-slate-900' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-600 text-slate-400'}`}>
                   <ImageIcon size={11} /> Photos
                 </button>
+                {showImages && (
+                  <button onClick={() => setGroupPhotosByTask(v => !v)} className={`h-8 px-3 rounded-lg text-[11px] font-black border-2 transition-all flex items-center gap-1.5 ${groupPhotosByTask ? 'bg-orange-500 border-orange-500 text-white' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-600 text-slate-400'}`} title="Group photos by task">
+                    Group by task
+                  </button>
+                )}
                 <button onClick={() => setSignatureEnabled(!signatureEnabled)} className={`h-8 px-3 rounded-lg text-[11px] font-black border-2 transition-all flex items-center gap-1.5 ${signatureEnabled ? 'bg-slate-900 dark:bg-white border-slate-900 dark:border-white text-white dark:text-slate-900' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-600 text-slate-400'}`}>
                   <Edit3 size={11} /> Sign
                 </button>
@@ -2180,7 +2241,7 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
                 <h2 className="text-3xl font-black uppercase tracking-tight text-slate-900">{docLabel}</h2>
                 <div className="flex items-center gap-1 mt-1">
                   <span className="text-sm font-mono font-bold text-slate-500">#</span>
-                  <input className="text-sm font-mono font-bold text-slate-700 bg-transparent outline-none print-clean-input focus:border-orange-400 min-w-0 w-40" value={docNumber} onChange={e => setHeader(h => ({ ...h, [docStage === 'invoice' ? 'invoiceNumber' : 'quoteNumber']: e.target.value }))} />
+                  <input className="text-sm font-mono font-bold text-slate-700 bg-transparent outline-none print-clean-input focus:border-orange-400 min-w-0 w-40" value={docNumber} onChange={e => setHeader(h => ({ ...h, [docNumberField]: e.target.value }))} />
                 </div>
               </div>
               <div className="text-right text-xs space-y-1 min-w-[180px]">
@@ -2188,7 +2249,18 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
                 {docStage === 'quote' && validUntil && (
                   <div className="flex justify-between gap-3"><span className="font-black text-slate-400 uppercase tracking-wider">Valid until</span><span className="font-bold text-slate-700">{new Date(validUntil).toLocaleDateString(cc.locale, { day: 'numeric', month: 'short', year: 'numeric' })}</span></div>
                 )}
-                <div className={`flex justify-between gap-3 ${!header.dueDate ? 'print:hidden' : ''}`}><span className="font-black text-slate-400 uppercase tracking-wider">{docStage === 'invoice' ? 'Due' : 'Target date'}</span><input type="date" className="bg-transparent text-right outline-none text-amber-600 font-bold cursor-pointer print-clean-input focus:border-orange-500" value={header.dueDate} onChange={e => setHeader({ ...header, dueDate: e.target.value })} /></div>
+                {docStage === 'receipt' ? (
+                  <>
+                    <div className="flex justify-between gap-3"><span className="font-black text-slate-400 uppercase tracking-wider">Paid on</span><input type="date" className="bg-transparent text-right outline-none text-emerald-600 font-bold cursor-pointer print-clean-input focus:border-emerald-500" value={header.paidDate} onChange={e => setHeader({ ...header, paidDate: e.target.value })} /></div>
+                    <div className="flex justify-between gap-3"><span className="font-black text-slate-400 uppercase tracking-wider">Method</span>
+                      <select className="bg-transparent text-right outline-none font-bold text-slate-700 cursor-pointer print-clean-input focus:border-emerald-500" value={header.paymentMethod} onChange={e => setHeader({ ...header, paymentMethod: e.target.value })}>
+                        {['Bank transfer', 'Cash', 'Card', 'Cheque', 'Direct debit', 'Other'].map(m => <option key={m} value={m}>{m}</option>)}
+                      </select>
+                    </div>
+                  </>
+                ) : (
+                  <div className={`flex justify-between gap-3 ${!header.dueDate ? 'print:hidden' : ''}`}><span className="font-black text-slate-400 uppercase tracking-wider">{docStage === 'invoice' ? 'Due' : 'Target date'}</span><input type="date" className="bg-transparent text-right outline-none text-amber-600 font-bold cursor-pointer print-clean-input focus:border-orange-500" value={header.dueDate} onChange={e => setHeader({ ...header, dueDate: e.target.value })} /></div>
+                )}
                 {header.clientRef && (
                   <div className="flex justify-between gap-3"><span className="font-black text-slate-400 uppercase tracking-wider">Ref</span><input className="bg-transparent text-right outline-none font-bold text-slate-700 font-mono print-clean-input focus:border-orange-400 max-w-[120px]" value={header.clientRef} onChange={e => setHeader({ ...header, clientRef: e.target.value })} /></div>
                 )}
@@ -2206,7 +2278,7 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
                 {biz.email && <p className="text-[11px] text-slate-500">{biz.email}</p>}
               </div>
               <div>
-                <p className={`mb-1.5 ${s.labelColor}`}>{docStage === 'invoice' ? 'Bill To' : 'Prepared For'}</p>
+                <p className={`mb-1.5 ${s.labelColor}`}>{docStage === 'receipt' ? 'Issued To' : docStage === 'invoice' ? 'Bill To' : 'Prepared For'}</p>
                 <input className={`w-full text-sm font-black text-slate-900 bg-transparent outline-none print-clean-input focus:border-orange-400 mb-1 ${!header.clientName ? 'print:hidden' : ''}`} value={header.clientName} onChange={e => setHeader({ ...header, clientName: e.target.value })} placeholder="Client name" />
                 <textarea rows={2} className={`w-full text-[11px] text-slate-500 leading-snug bg-transparent outline-none resize-none print-clean-input focus:border-orange-400 ${!header.address ? 'print:hidden' : ''}`} value={header.address} onChange={e => setHeader({ ...header, address: e.target.value })} placeholder="Site address" />
                 {(job.clientPhone || job.clientEmail) && (
@@ -2288,16 +2360,25 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
                 {extraTaxRate > 0 && <p className="font-black uppercase text-purple-400 text-sm">{getCC().markupLabel} ({extraTaxRate}%): {fmtAUD(totals.extra)}</p>}
               </div>
               <div className="text-right">
-                <p className={`mb-1 ${s.totalLabel}`}>{docStage === 'invoice' ? 'Total Due' : job.gstEnabled ? `Total inc. Tax/${getCC().taxLabel}` : 'Quotation Total'}</p>
+                <p className={`mb-1 ${s.totalLabel}`}>{docStage === 'receipt' ? 'Amount Paid' : docStage === 'invoice' ? 'Total Due' : job.gstEnabled ? `Total inc. Tax/${getCC().taxLabel}` : 'Quotation Total'}</p>
                 <p className={s.totalAmount}>{fmtAUD(totals.total)}</p>
                 {job.gstEnabled && <p className={`text-xs font-bold mt-1 ${s.gstIncluded}`}>{getCC().taxLabel} included: {fmtAUD(totals.gst)}</p>}
               </div>
             </div>
           )}
 
-          {(biz.paymentTerms || hasBankDetails) && (
+          {docStage === 'receipt' && (
+            <div className="mt-8 flex justify-end break-inside-avoid">
+              <div className="border-2 border-emerald-500 rounded-2xl px-8 py-4 text-center inline-block">
+                <p className="text-4xl font-black text-emerald-600 tracking-tight leading-none">PAID</p>
+                <p className="text-[10px] font-bold text-slate-500 mt-1.5 uppercase tracking-widest">{header.paidDate ? new Date(header.paidDate).toLocaleDateString(cc.locale, { day: 'numeric', month: 'short', year: 'numeric' }) : ''}{header.paymentMethod ? ` · ${header.paymentMethod}` : ''}</p>
+              </div>
+            </div>
+          )}
+
+          {((biz.paymentTerms && docStage !== 'receipt') || hasBankDetails) && (
             <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-5 break-inside-avoid">
-              {biz.paymentTerms && (
+              {biz.paymentTerms && docStage !== 'receipt' && (
                 <div className="border-l-4 border-slate-300 pl-4 py-1">
                   <p className={`mb-1 ${s.labelColor}`}>Payment Terms</p>
                   <p className="text-[12px] text-slate-700 font-medium whitespace-pre-line">{biz.paymentTerms}</p>
