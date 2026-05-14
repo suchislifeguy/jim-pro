@@ -22,12 +22,12 @@ const JimMascot = ({ size = 36, state = 'idle' }) => {
   const isThink = s === 'thinking';
   return (
     <div className={wrapCls} style={{ width: size, height: h, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-    <svg viewBox="0 0 60 90" width={size} height={h} overflow="visible">
+    <svg viewBox="0 0 60 90" width={size} height={h} overflow="visible" shapeRendering="geometricPrecision" style={{ imageRendering: 'crisp-edges' }}>
 
     {/*  Gradients and Shadows for HD look */}
     <defs>
     <filter id="jim-shadow" x="-20%" y="-20%" width="140%" height="140%">
-    <feDropShadow dx="0" dy="2" stdDeviation="1.5" floodColor="#000000" floodOpacity="0.25" />
+    <feDropShadow dx="0" dy="0.8" stdDeviation="0.5" floodColor="#000000" floodOpacity="0.35" />
     </filter>
     <linearGradient id="hat-grad" x1="0" y1="0" x2="0" y2="1">
     <stop offset="0%" stopColor="#fb923c" />
@@ -140,7 +140,7 @@ const JimMascot = ({ size = 36, state = 'idle' }) => {
       </g>
 
       {/* HEAD & HAT */}
-      <g className="jim-head" filter="url(#jim-shadow)">
+      <g className="jim-head">
       {/* Neck */}
       <rect x="27" y="38" width="6" height="5" fill="url(#skin-grad)" />
 
@@ -153,27 +153,56 @@ const JimMascot = ({ size = 36, state = 'idle' }) => {
 
       {/* Eyes */}
       <g className="jim-eyes">
-      {/* Whites */}
-      <circle cx="24" cy="27" r="3.5" fill="#ffffff" />
-      <circle cx="36" cy="27" r="3.5" fill="#ffffff" />
+      {/* Whites — almond shape */}
+      <ellipse cx="24" cy="27" rx="3.2" ry="2.1" fill="#ffffff" />
+      <ellipse cx="36" cy="27" rx="3.2" ry="2.1" fill="#ffffff" />
       {/* Irises */}
-      <circle cx="24" cy="27" r="1.8" fill="#064e3b" />
-      <circle cx="36" cy="27" r="1.8" fill="#064e3b" />
-      {/* Catchlights (HD Detail) */}
-      <circle cx="23.5" cy="26" r="0.8" fill="#ffffff" />
-      <circle cx="35.5" cy="26" r="0.8" fill="#ffffff" />
+      <ellipse cx="24" cy="27" rx="1.7" ry="2" fill="#1e3a2b" />
+      <ellipse cx="36" cy="27" rx="1.7" ry="2" fill="#1e3a2b" />
+      {/* Pupils */}
+      <ellipse cx="24" cy="27.2" rx="0.9" ry="1.3" fill="#0a0a0a" />
+      <ellipse cx="36" cy="27.2" rx="0.9" ry="1.3" fill="#0a0a0a" />
+      {/* Catchlights */}
+      <circle cx="23.4" cy="26.3" r="0.55" fill="#ffffff" />
+      <circle cx="35.4" cy="26.3" r="0.55" fill="#ffffff" />
+      {/* Upper lash line */}
+      <path d="M 20.9 26.4 Q 24 24.6 27.1 26.4" stroke="#1c1917" strokeWidth="0.7" fill="none" strokeLinecap="round" />
+      <path d="M 32.9 26.4 Q 36 24.6 39.1 26.4" stroke="#1c1917" strokeWidth="0.7" fill="none" strokeLinecap="round" />
+      {/* Lower lid soft shadow */}
+      <path d="M 21.2 28.2 Q 24 29 26.8 28.2" stroke="#a16207" strokeWidth="0.5" fill="none" strokeLinecap="round" opacity="0.6" />
+      <path d="M 33.2 28.2 Q 36 29 38.8 28.2" stroke="#a16207" strokeWidth="0.5" fill="none" strokeLinecap="round" opacity="0.6" />
 
-      {/* Eyebrows */}
-      <path d="M 21 23 Q 24 21 27 23" stroke="#451a03" strokeWidth="2" fill="none" strokeLinecap="round" />
-      <path d="M 33 23 Q 36 21 39 23" stroke="#451a03" strokeWidth="2" fill="none" strokeLinecap="round" />
+      {/* Eyebrows — thicker, tapered */}
+      <path d="M 20.5 23.2 Q 24 20.8 27.5 23" stroke="#451a03" strokeWidth="1.6" fill="none" strokeLinecap="round" />
+      <path d="M 32.5 23 Q 36 20.8 39.5 23.2" stroke="#451a03" strokeWidth="1.6" fill="none" strokeLinecap="round" />
       </g>
 
       {/* Nose */}
       <path d="M 28 30 C 28 32 32 32 32 30" stroke="#ea580c" strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.4" />
 
-      {/* Smooth HD Mustache */}
+      {/* Handlebar Mustache */}
       <g className="jim-mustache">
-      <path d="M 20 34 C 23 31 27 31 30 33 C 33 31 37 31 40 34 C 39 38 34 39 30 37 C 26 39 21 38 20 34 Z" fill="#451a03" />
+      <path d="M 30 34
+               C 28.5 33 26.5 32.4 24 32.6
+               C 21.5 32.8 19.5 33.6 18.2 35
+               C 17.6 35.7 17.8 36.2 18.6 36
+               C 19.8 35.7 20.8 35.5 21.8 35.6
+               C 20.6 36.4 19.8 37.3 19.6 38.1
+               C 19.5 38.6 19.9 38.8 20.4 38.5
+               C 22 37.5 24 36.8 26 36.7
+               C 27.6 36.6 28.9 36.9 30 37.6
+               C 31.1 36.9 32.4 36.6 34 36.7
+               C 36 36.8 38 37.5 39.6 38.5
+               C 40.1 38.8 40.5 38.6 40.4 38.1
+               C 40.2 37.3 39.4 36.4 38.2 35.6
+               C 39.2 35.5 40.2 35.7 41.4 36
+               C 42.2 36.2 42.4 35.7 41.8 35
+               C 40.5 33.6 38.5 32.8 36 32.6
+               C 33.5 32.4 31.5 33 30 34 Z"
+            fill="#451a03" />
+      {/* Mustache highlight */}
+      <path d="M 22 34.2 Q 26 33.4 29.6 34.4" stroke="#78350f" strokeWidth="0.4" fill="none" strokeLinecap="round" opacity="0.7" />
+      <path d="M 30.4 34.4 Q 34 33.4 38 34.2" stroke="#78350f" strokeWidth="0.4" fill="none" strokeLinecap="round" opacity="0.7" />
       </g>
 
       {/* Smile under mustache */}
