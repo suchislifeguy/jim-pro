@@ -1407,12 +1407,456 @@ Return ONLY a valid JSON object with keys:
   );
 };
 
+const PDF_THEMES = {
+  contractor: {
+    fontFamily: 'helvetica',
+    accent: [249, 115, 22],
+    accentLight: [255, 237, 213],
+    text: [15, 23, 42],
+    muted: [100, 116, 139],
+    divider: [226, 232, 240],
+    bandBg: null,
+    totalsBg: [15, 23, 42],
+    totalsText: [255, 255, 255],
+    totalsAccent: [251, 146, 60],
+    headerStyle: 'minimal',
+    tableHeadFill: [251, 146, 60],
+    tableHeadText: [255, 255, 255],
+  },
+  boutique: {
+    fontFamily: 'times',
+    accent: [139, 115, 85],
+    accentLight: [240, 232, 220],
+    text: [42, 34, 32],
+    muted: [122, 107, 93],
+    divider: [221, 213, 200],
+    bandBg: null,
+    totalsBg: [42, 34, 32],
+    totalsText: [255, 255, 255],
+    totalsAccent: [200, 168, 120],
+    headerStyle: 'minimal',
+    tableHeadFill: [255, 255, 255],
+    tableHeadText: [42, 34, 32],
+    tableHeadBorder: [42, 34, 32],
+  },
+  corporate: {
+    fontFamily: 'helvetica',
+    accent: [14, 165, 233],
+    accentLight: [224, 242, 254],
+    text: [15, 23, 42],
+    muted: [100, 116, 139],
+    divider: [226, 232, 240],
+    bandBg: [26, 35, 50],
+    bandText: [255, 255, 255],
+    totalsBg: [26, 35, 50],
+    totalsText: [255, 255, 255],
+    totalsAccent: [125, 211, 252],
+    headerStyle: 'band',
+    tableHeadFill: [26, 35, 50],
+    tableHeadText: [255, 255, 255],
+  },
+  industrial: {
+    fontFamily: 'courier',
+    accent: [71, 85, 105],
+    accentLight: [241, 245, 249],
+    text: [15, 23, 42],
+    muted: [100, 116, 139],
+    divider: [203, 213, 225],
+    bandBg: [28, 35, 51],
+    bandText: [255, 255, 255],
+    totalsBg: [28, 35, 51],
+    totalsText: [255, 255, 255],
+    totalsAccent: [148, 163, 184],
+    headerStyle: 'band',
+    tableHeadFill: [45, 55, 72],
+    tableHeadText: [255, 255, 255],
+  },
+};
+
+const renderJobPdf = async ({ job, biz, header, tasks, totals, totalHours, cc, docStage, docStyle, signatureData, showImages, showBusinessHeader, showCosts, extraTaxRate, docNumber }) => {
+  const { default: jsPDF } = await import('jspdf');
+  const { default: autoTable } = await import('jspdf-autotable');
+
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const theme = PDF_THEMES[docStyle] || PDF_THEMES.contractor;
+  const pageW = 210, pageH = 297;
+  const margin = 16;
+  const contentW = pageW - margin * 2;
+  let y = margin;
+
+  doc.setFont(theme.fontFamily, 'normal');
+
+  const setColor = (rgb, kind = 'text') => {
+    if (kind === 'text') doc.setTextColor(rgb[0], rgb[1], rgb[2]);
+    else if (kind === 'fill') doc.setFillColor(rgb[0], rgb[1], rgb[2]);
+    else doc.setDrawColor(rgb[0], rgb[1], rgb[2]);
+  };
+
+  const ensureSpace = (needed) => {
+    if (y + needed > pageH - margin) { doc.addPage(); y = margin; }
+  };
+
+  const docLabel = docStage === 'invoice' ? (cc.invoiceLabel || 'Invoice') : 'Quotation';
+  const fmtMoney = (n) => `${cc.symbol}${(n || 0).toFixed(2)}`;
+  const fmtMinsLocal = (m) => { const h = Math.floor(m / 60); const r = Math.round(m % 60); return r ? `${h}h ${r}m` : `${h}h`; };
+  const fmtDateLocal = (iso) => iso ? new Date(iso).toLocaleDateString(cc.locale, { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+
+  // ===== 1. Business header band =====
+  if (showBusinessHeader && (biz.name || biz.logo)) {
+    if (theme.headerStyle === 'band') {
+      setColor(theme.bandBg, 'fill');
+      doc.rect(0, 0, pageW, 40, 'F');
+      y = 12;
+      setColor(theme.bandText);
+    } else {
+      setColor(theme.text);
+    }
+
+    let textX = margin;
+    if (biz.logo) {
+      try {
+        const logoH = theme.headerStyle === 'band' ? 18 : 16;
+        doc.addImage(biz.logo, 'PNG', margin, y - 2, logoH, logoH, undefined, 'FAST');
+        textX = margin + logoH + 4;
+      } catch (e) { /* logo failed */ }
+    }
+    doc.setFont(theme.fontFamily, 'bold');
+    doc.setFontSize(15);
+    if (biz.name) doc.text(biz.name, textX, y + 5);
+    doc.setFont(theme.fontFamily, 'normal');
+    doc.setFontSize(8);
+    let lineY = y + 10;
+    if (biz.tradingName) { doc.text(`T/A ${biz.tradingName}`, textX, lineY); lineY += 3.5; }
+    if (biz.abn) { doc.text(`${cc.regLabel || 'ABN'} ${biz.abn}`, textX, lineY); lineY += 3.5; }
+
+    // Right side: contact
+    doc.setFontSize(8);
+    let rY = y + 5;
+    const rightX = pageW - margin;
+    if (biz.phone) { doc.text(biz.phone, rightX, rY, { align: 'right' }); rY += 3.5; }
+    if (biz.email) { doc.text(biz.email, rightX, rY, { align: 'right' }); rY += 3.5; }
+    if (biz.address) {
+      const lines = doc.splitTextToSize(biz.address, 70);
+      lines.forEach(ln => { doc.text(ln, rightX, rY, { align: 'right' }); rY += 3.5; });
+    }
+
+    y = Math.max(lineY, rY, theme.headerStyle === 'band' ? 40 : y + 22) + 6;
+
+    if (theme.headerStyle !== 'band') {
+      setColor(theme.divider, 'draw');
+      doc.setLineWidth(0.3);
+      doc.line(margin, y - 2, pageW - margin, y - 2);
+    }
+  }
+
+  // ===== 2. Document title + number + dates =====
+  setColor(theme.text);
+  doc.setFont(theme.fontFamily, 'bold');
+  doc.setFontSize(24);
+  doc.text(docLabel.toUpperCase(), margin, y + 8);
+  doc.setFont(theme.fontFamily, 'normal');
+  doc.setFontSize(10);
+  setColor(theme.muted);
+  doc.text(`#${docNumber || ''}`, margin, y + 13);
+
+  // Right column meta
+  doc.setFontSize(8);
+  const metaX = pageW - margin;
+  let metaY = y + 5;
+  const metaLine = (label, value) => {
+    if (!value) return;
+    setColor(theme.muted);
+    doc.text(label.toUpperCase(), metaX - 50, metaY);
+    setColor(theme.text);
+    doc.setFont(theme.fontFamily, 'bold');
+    doc.text(String(value), metaX, metaY, { align: 'right' });
+    doc.setFont(theme.fontFamily, 'normal');
+    metaY += 4.5;
+  };
+  metaLine('Issued', fmtDateLocal(header.date));
+  if (docStage === 'quote') {
+    const days = parseInt(biz.quoteValidity || '30', 10);
+    if (days) { const d = new Date(header.date); d.setDate(d.getDate() + days); metaLine('Valid until', fmtDateLocal(d)); }
+  }
+  if (header.dueDate) metaLine(docStage === 'invoice' ? 'Due' : 'Target date', fmtDateLocal(header.dueDate));
+  if (header.clientRef) metaLine('Reference', header.clientRef);
+
+  y = Math.max(y + 18, metaY) + 4;
+
+  // ===== 3. From / Bill To two-column =====
+  const colW = (contentW - 8) / 2;
+  const colY = y;
+  const writeBlock = (x, title, lines) => {
+    setColor(theme.accent);
+    doc.setFont(theme.fontFamily, 'bold');
+    doc.setFontSize(7);
+    doc.text(title.toUpperCase(), x, y);
+    let by = y + 5;
+    lines.forEach((ln, i) => {
+      if (!ln) return;
+      doc.setFont(theme.fontFamily, i === 0 ? 'bold' : 'normal');
+      doc.setFontSize(i === 0 ? 10 : 8);
+      setColor(i === 0 ? theme.text : theme.muted);
+      const wrapped = doc.splitTextToSize(String(ln), colW);
+      wrapped.forEach(w => { doc.text(w, x, by); by += i === 0 ? 4.5 : 3.8; });
+    });
+    return by;
+  };
+
+  const fromLines = [biz.name, biz.tradingName ? `T/A ${biz.tradingName}` : null, biz.abn ? `${cc.regLabel || 'ABN'} ${biz.abn}` : null, biz.address, biz.phone, biz.email].filter(Boolean);
+  const billLines = [header.clientName, header.address, job.clientPhone, job.clientEmail].filter(Boolean);
+
+  const leftEnd = writeBlock(margin, 'From', fromLines);
+  y = colY;
+  const rightEnd = writeBlock(margin + colW + 8, docStage === 'invoice' ? 'Bill To' : 'Prepared For', billLines);
+  y = Math.max(leftEnd, rightEnd) + 4;
+
+  // Project notes
+  if (header.projectNotes) {
+    setColor(theme.divider, 'draw');
+    doc.setLineWidth(0.2);
+    doc.line(margin, y, pageW - margin, y);
+    y += 4;
+    setColor(theme.muted);
+    doc.setFont(theme.fontFamily, 'italic');
+    doc.setFontSize(9);
+    const noteLines = doc.splitTextToSize(header.projectNotes, contentW);
+    noteLines.forEach(ln => { ensureSpace(5); doc.text(ln, margin, y); y += 4; });
+    doc.setFont(theme.fontFamily, 'normal');
+    y += 3;
+  }
+
+  // ===== 4. Line items table =====
+  const tableBody = tasks.map((t, i) => {
+    const labour = (parseTimeToMinutes(t.time) / 60) * (parseFloat(t.rate) || 0);
+    const mats = parseFloat(t.materialsCost) || 0;
+    const subtotal = labour + mats;
+    const descParts = [];
+    if (t.desc) descParts.push(t.desc);
+    if (t.materials) descParts.push(`Materials: ${String(t.materials).replace(/\n/g, ', ')}`);
+    if (t.tools) descParts.push(`Tools: ${String(t.tools).replace(/\n/g, ', ')}`);
+    return [
+      String(i + 1).padStart(2, '0'),
+      `${t.title || '(untitled)'}${descParts.length ? '\n' + descParts.join('\n') : ''}`,
+      t.time || '',
+      showCosts && t.rate ? `${cc.symbol}${parseFloat(t.rate).toFixed(2)}` : '',
+      showCosts ? fmtMoney(subtotal) : '',
+    ];
+  });
+
+  autoTable(doc, {
+    startY: y + 2,
+    head: [['#', 'Description', 'Time', 'Rate', 'Amount']],
+    body: tableBody,
+    margin: { left: margin, right: margin },
+    styles: { font: theme.fontFamily, fontSize: 9, cellPadding: 3, textColor: theme.text, lineColor: theme.divider, lineWidth: 0.1, overflow: 'linebreak' },
+    headStyles: { fillColor: theme.tableHeadFill, textColor: theme.tableHeadText, fontStyle: 'bold', fontSize: 8, lineColor: theme.tableHeadBorder || theme.tableHeadFill, lineWidth: theme.tableHeadBorder ? 0.5 : 0, halign: 'left' },
+    columnStyles: {
+      0: { cellWidth: 10, halign: 'center', textColor: theme.muted },
+      1: { cellWidth: 'auto' },
+      2: { cellWidth: 22, halign: 'right' },
+      3: { cellWidth: 22, halign: 'right' },
+      4: { cellWidth: 28, halign: 'right', fontStyle: 'bold' },
+    },
+    alternateRowStyles: { fillColor: theme.accentLight },
+    didParseCell: (data) => {
+      if (data.section === 'body' && data.column.index === 1 && data.cell.raw) {
+        const txt = String(data.cell.raw);
+        const split = txt.split('\n');
+        if (split.length > 1) {
+          data.cell.text = split;
+        }
+      }
+    },
+  });
+  y = (doc.lastAutoTable?.finalY || y) + 6;
+
+  // ===== 5. Totals box =====
+  if (showCosts && totals.total > 0) {
+    ensureSpace(36);
+    const boxH = 30;
+    setColor(theme.totalsBg, 'fill');
+    doc.rect(margin, y, contentW, boxH, 'F');
+
+    // Left breakdown
+    setColor(theme.totalsText);
+    doc.setFontSize(8);
+    doc.setFont(theme.fontFamily, 'normal');
+    let bY = y + 6;
+    doc.text(`Labour: ${fmtMoney(totals.labour)}`, margin + 4, bY); bY += 4;
+    doc.text(`Materials: ${fmtMoney(totals.mats)}`, margin + 4, bY); bY += 4;
+    if (job.gstEnabled) {
+      doc.text(`Subtotal: ${fmtMoney(totals.subtotal)}`, margin + 4, bY); bY += 4;
+      doc.text(`${cc.taxLabel} (${cc.taxRate}%): ${fmtMoney(totals.gst)}`, margin + 4, bY); bY += 4;
+    }
+    if (extraTaxRate > 0) {
+      doc.text(`${cc.markupLabel || 'Markup'} (${extraTaxRate}%): ${fmtMoney(totals.extra)}`, margin + 4, bY);
+    }
+
+    // Right total
+    setColor(theme.totalsAccent);
+    doc.setFontSize(7);
+    doc.setFont(theme.fontFamily, 'bold');
+    doc.text((docStage === 'invoice' ? 'TOTAL DUE' : (job.gstEnabled ? `TOTAL INC. ${cc.taxLabel}` : 'QUOTATION TOTAL')), pageW - margin - 4, y + 8, { align: 'right' });
+    setColor(theme.totalsText);
+    doc.setFontSize(22);
+    doc.text(fmtMoney(totals.total), pageW - margin - 4, y + 20, { align: 'right' });
+    if (job.gstEnabled) {
+      doc.setFont(theme.fontFamily, 'normal');
+      doc.setFontSize(7);
+      setColor(theme.totalsAccent);
+      doc.text(`${cc.taxLabel} incl: ${fmtMoney(totals.gst)}`, pageW - margin - 4, y + 25, { align: 'right' });
+    }
+    y += boxH + 6;
+  }
+
+  // ===== 6. Payment terms + bank details =====
+  const hasBankDetails = docStage === 'invoice' && biz.bankName && biz.accountName && biz.accountNumber;
+  if (biz.paymentTerms || hasBankDetails) {
+    ensureSpace(28);
+    const halfW = (contentW - 6) / 2;
+    let leftY = y, rightY = y;
+    if (biz.paymentTerms) {
+      setColor(theme.accent, 'draw');
+      doc.setLineWidth(1.2);
+      doc.line(margin, y, margin, y + 20);
+      setColor(theme.accent);
+      doc.setFont(theme.fontFamily, 'bold');
+      doc.setFontSize(7);
+      doc.text('PAYMENT TERMS', margin + 3, y + 3);
+      setColor(theme.text);
+      doc.setFont(theme.fontFamily, 'normal');
+      doc.setFontSize(9);
+      const lines = doc.splitTextToSize(biz.paymentTerms, halfW - 5);
+      let py = y + 8;
+      lines.forEach(ln => { doc.text(ln, margin + 3, py); py += 4; });
+      leftY = py;
+    }
+    if (hasBankDetails) {
+      const bx = margin + halfW + 6;
+      setColor([16, 185, 129], 'draw');
+      doc.setLineWidth(1.2);
+      doc.line(bx, y, bx, y + 22);
+      setColor([16, 185, 129]);
+      doc.setFont(theme.fontFamily, 'bold');
+      doc.setFontSize(7);
+      doc.text('PAY TO', bx + 3, y + 3);
+      setColor(theme.text);
+      doc.setFont(theme.fontFamily, 'bold');
+      doc.setFontSize(10);
+      doc.text(biz.accountName, bx + 3, y + 8);
+      setColor(theme.muted);
+      doc.setFont(theme.fontFamily, 'normal');
+      doc.setFontSize(8);
+      doc.text(biz.bankName, bx + 3, y + 12);
+      doc.setFont('courier', 'normal');
+      doc.text(`${biz.bsb ? `BSB ${biz.bsb}  ` : ''}Acct ${biz.accountNumber}`, bx + 3, y + 16);
+      doc.setFont(theme.fontFamily, 'normal');
+      setColor(theme.muted);
+      doc.setFontSize(7);
+      doc.text(`Reference: ${docNumber || ''}`, bx + 3, y + 20);
+      rightY = y + 22;
+    }
+    y = Math.max(leftY, rightY) + 6;
+  }
+
+  // ===== 7. Photos + signature section =====
+  const allPhotos = [];
+  if (showImages) {
+    (header.projectPhotos || []).forEach(p => allPhotos.push(p));
+    tasks.forEach(t => (t.images || []).forEach(p => allPhotos.push(p)));
+  }
+  if (allPhotos.length > 0 || signatureData) {
+    doc.addPage(); y = margin;
+    setColor(theme.text);
+    doc.setFont(theme.fontFamily, 'bold');
+    doc.setFontSize(14);
+    doc.text(signatureData && allPhotos.length === 0 ? 'Client Signature' : (allPhotos.length > 0 && signatureData ? 'Photos & Signature' : 'Job Photos'), margin, y + 5);
+    y += 12;
+
+    if (allPhotos.length > 0) {
+      const cols = 2;
+      const gap = 4;
+      const cellW = (contentW - gap * (cols - 1)) / cols;
+      const cellH = cellW * 0.75;
+      let col = 0;
+      for (const photo of allPhotos) {
+        if (y + cellH > pageH - margin) { doc.addPage(); y = margin; col = 0; }
+        const x = margin + col * (cellW + gap);
+        try {
+          doc.addImage(photo, 'JPEG', x, y, cellW, cellH, undefined, 'MEDIUM');
+        } catch (e) { /* skip bad image */ }
+        col++;
+        if (col >= cols) { col = 0; y += cellH + gap; }
+      }
+      if (col !== 0) y += cellH + gap;
+    }
+
+    if (signatureData) {
+      ensureSpace(40);
+      y += 4;
+      setColor(theme.accent);
+      doc.setFont(theme.fontFamily, 'bold');
+      doc.setFontSize(7);
+      doc.text('CLIENT APPROVAL / SIGNATURE', margin, y);
+      y += 4;
+      try {
+        doc.addImage(signatureData, 'PNG', margin, y, 70, 30, undefined, 'FAST');
+        y += 32;
+      } catch (e) { /* skip */ }
+      setColor(theme.muted);
+      doc.setFontSize(8);
+      doc.text(`Signed: ${fmtDateLocal(header.date)}`, margin, y);
+      y += 6;
+    }
+  }
+
+  // ===== 8. T&Cs footer =====
+  if (biz.termsAndConditions) {
+    ensureSpace(30);
+    y += 4;
+    setColor(theme.divider, 'draw');
+    doc.setLineWidth(0.3);
+    doc.line(margin, y, pageW - margin, y);
+    y += 4;
+    setColor(theme.muted);
+    doc.setFont(theme.fontFamily, 'bold');
+    doc.setFontSize(7);
+    doc.text('TERMS & CONDITIONS', margin, y);
+    y += 4;
+    doc.setFont(theme.fontFamily, 'normal');
+    doc.setFontSize(7);
+    const lines = doc.splitTextToSize(biz.termsAndConditions, contentW);
+    lines.forEach(ln => { ensureSpace(4); doc.text(ln, margin, y); y += 3; });
+  }
+
+  // Page numbers
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let p = 1; p <= pageCount; p++) {
+    doc.setPage(p);
+    setColor(theme.muted);
+    doc.setFont(theme.fontFamily, 'normal');
+    doc.setFontSize(7);
+    doc.text(`${docNumber || ''}${biz.name ? ` · ${biz.name}` : ''}`, margin, pageH - 6);
+    doc.text(`Page ${p} of ${pageCount}`, pageW - margin, pageH - 6, { align: 'right' });
+  }
+
+  return doc;
+};
+
 const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpdateJob, showToast }) => {
   const [tasks, setTasks] = useState(job.tasks.map(t => ({ ...t })));
+  const defaultDocNumber = (kind) => {
+    const yr = new Date(job.date || Date.now()).getFullYear();
+    const tail = String(job.id || '').replace(/-/g, '').slice(-4).toUpperCase() || '0001';
+    return `${kind === 'invoice' ? 'INV' : 'QUO'}-${yr}-${tail}`;
+  };
   const [header, setHeader] = useState({
     address: job.address, clientName: job.clientName, clientRef: job.clientRef || '',
     date: job.date ? new Date(job.date).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
     dueDate: job.dueDate || '', projectNotes: job.projectNotes || '', projectPhotos: job.projectPhotos || [],
+    quoteNumber: job.quoteNumber || defaultDocNumber('quote'),
+    invoiceNumber: job.invoiceNumber || defaultDocNumber('invoice'),
   });
   const [signatureEnabled, setSignatureEnabled] = useState(job.showSignature || false);
   const [signatureData, setSignatureData] = useState(job.signature || null);
@@ -1424,7 +1868,7 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
   const [showBusinessHeader, setShowBusinessHeader] = useState(true);
   const [showImages, setShowImages] = useState(true);
 
-  useEffect(() => { onUpdateJob({ ...job, tasks, date: new Date(header.date).toISOString(), showSignature: signatureEnabled, signature: signatureData }); }, [header.date, header.dueDate, signatureEnabled, signatureData, tasks]);
+  useEffect(() => { onUpdateJob({ ...job, tasks, date: new Date(header.date).toISOString(), showSignature: signatureEnabled, signature: signatureData, quoteNumber: header.quoteNumber, invoiceNumber: header.invoiceNumber }); }, [header.date, header.dueDate, header.quoteNumber, header.invoiceNumber, signatureEnabled, signatureData, tasks]);
 
   const updateTask = (index, field, value) => { const updated = [...tasks]; updated[index] = { ...updated[index], [field]: value }; setTasks(updated); };
   const totals = getQuoteTotals(tasks, job.gstEnabled, extraTaxRate);
@@ -1437,9 +1881,7 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
   const matLabel = docStage === 'invoice' ? 'Materials Used' : 'Materials Needed';
   const toolLabel = docStage === 'invoice' ? 'Tools Used' : 'Tools Needed';
 
-  const docNumber = docStage === 'invoice'
-    ? (job.invoiceNumber || `INV-${new Date(header.date).getFullYear()}-${String(job.id || '').slice(-4).toUpperCase()}`)
-    : (job.quoteNumber || `QUO-${new Date(header.date).getFullYear()}-${String(job.id || '').slice(-4).toUpperCase()}`);
+  const docNumber = docStage === 'invoice' ? header.invoiceNumber : header.quoteNumber;
 
   const validUntil = (() => {
     if (docStage !== 'quote') return '';
@@ -1571,26 +2013,39 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
 
   const s = STYLES[docStyle];
 
-  const handleSharePDF = async () => {
-    const element = document.getElementById('pdf-content');
+  const buildPdfDoc = () => renderJobPdf({
+    job, biz, header, tasks, totals, totalHours, cc,
+    docStage, docStyle,
+    signatureData: signatureEnabled ? signatureData : null,
+    showImages, showBusinessHeader, showCosts, extraTaxRate,
+    docNumber,
+  });
+
+  const pdfFilename = () => `${(header.clientName || job.clientName || 'Job').replace(/[^a-z0-9-]+/gi, '_')}-${docNumber || formatLocal(header.date, 'short')}.pdf`;
+
+  const handlePreviewSave = async () => {
     setIsGeneratingPDF(true);
     try {
-      const opt = {
-        margin: 10,
-        filename: `${job.clientName || 'Job'}-${formatLocal(header.date, 'short')}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
-        pagebreak: { mode: ['css', 'legacy'] },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-      };
+      const doc = await buildPdfDoc();
+      const blobUrl = doc.output('bloburl');
+      window.open(blobUrl, '_blank');
+    } catch (err) { showToast('Error generating PDF', 'error'); console.error(err); }
+    finally { setIsGeneratingPDF(false); }
+  };
+
+  const handleSharePDF = async () => {
+    setIsGeneratingPDF(true);
+    try {
+      const doc = await buildPdfDoc();
+      const pdfBlob = doc.output('blob');
+      const fname = pdfFilename();
+      const file = new File([pdfBlob], fname, { type: 'application/pdf' });
       const totalLabel = totals.total > 0 ? `${fmtAUD(totals.total)}${job.gstEnabled ? ` (inc. ${getCC().taxLabel})` : ''}` : '';
       const shareText = `${docLabel} for ${header.address}${totalLabel ? ` — ${totalLabel}` : ''}\n\nFrom ${biz.name || 'JIM'}`;
-      const pdfBlob = await window.html2pdf().set(opt).from(element).output('blob');
-      const file = new File([pdfBlob], `${job.clientName || 'Job_Report'}.pdf`, { type: 'application/pdf' });
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({ files: [file], title: `${docLabel} - ${biz.name || 'JIM'}`, text: shareText });
       } else {
-        window.html2pdf().set(opt).from(element).save();
+        doc.save(fname);
         showToast('Downloaded PDF', 'success');
       }
     } catch (err) { showToast('Error generating PDF', 'error'); console.error(err); }
@@ -1635,7 +2090,7 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
             <h2 className="text-lg font-extrabold text-slate-800 dark:text-white">Preview</h2>
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
-            <button onClick={() => window.print()} className="h-9 px-3 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg font-semibold flex items-center gap-1.5 text-xs transition-colors hover:bg-slate-50 dark:hover:bg-slate-700"><Printer size={13} /> Preview and Save</button>
+            <button onClick={handlePreviewSave} disabled={isGeneratingPDF} className="h-9 px-3 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg font-semibold flex items-center gap-1.5 text-xs transition-colors hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-60"><Printer size={13} /> Preview and Save</button>
             <button onClick={handleEmail} className="h-9 px-3 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg font-semibold flex items-center gap-1.5 text-xs transition-colors hover:bg-slate-50 dark:hover:bg-slate-700"><Mail size={13} /> Email</button>
             {job.clientPhone && (
               <button onClick={handleSMS} className="h-9 px-3 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg font-semibold flex items-center gap-1.5 text-xs transition-colors hover:bg-slate-50 dark:hover:bg-slate-700"><MessageSquare size={13} /> SMS</button>
@@ -1723,7 +2178,10 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
             <div className="flex justify-between items-start mb-5 gap-6">
               <div>
                 <h2 className="text-3xl font-black uppercase tracking-tight text-slate-900">{docLabel}</h2>
-                <p className="text-sm font-mono font-bold text-slate-500 mt-1">#{docNumber}</p>
+                <div className="flex items-center gap-1 mt-1">
+                  <span className="text-sm font-mono font-bold text-slate-500">#</span>
+                  <input className="text-sm font-mono font-bold text-slate-700 bg-transparent outline-none print-clean-input focus:border-orange-400 min-w-0 w-40" value={docNumber} onChange={e => setHeader(h => ({ ...h, [docStage === 'invoice' ? 'invoiceNumber' : 'quoteNumber']: e.target.value }))} />
+                </div>
               </div>
               <div className="text-right text-xs space-y-1 min-w-[180px]">
                 <div className="flex justify-between gap-3"><span className="font-black text-slate-400 uppercase tracking-wider">Issued</span><input type="date" className="bg-transparent text-right outline-none text-slate-800 font-bold cursor-pointer print-clean-input focus:border-orange-400" value={header.date} onChange={e => setHeader({ ...header, date: e.target.value })} /></div>
