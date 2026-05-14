@@ -79,8 +79,13 @@ body { -webkit-tap-highlight-color: transparent; transition: background-color 0.
   .bottom-nav-safe { padding-bottom: env(safe-area-inset-bottom); }
   .nav-spacing { padding-bottom: calc(5.5rem + env(safe-area-inset-bottom)); }
 }
+.print-clean-input { border: none; border-bottom: 1px dashed transparent; padding: 1px 0; transition: border-color 0.15s; }
+.print-clean-input:hover, .print-clean-input:focus { border-bottom-color: #cbd5e1; }
+#pdf-content .print-clean-input { border-bottom: none !important; }
+
 @media print {
   @page { margin: 12mm; size: A4; }
+  .print-clean-input { border: none !important; }
   html, body { background-color: white !important; color: black !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
   body > *:not(#print-container) { display: none !important; }
   #print-container { position: static !important; display: block !important; padding: 0 !important; margin: 0 !important; background: white !important; overflow: visible !important; }

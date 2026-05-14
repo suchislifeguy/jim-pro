@@ -582,7 +582,10 @@ const BusinessProfileEditor = ({ profile, onSave, onClose, showToast }) => {
     name: profile.name || '', tradingName: profile.tradingName || '',
     phone: profile.phone || '', email: profile.email || '', address: profile.address || '',
     logo: profile.logo || '', credentials: profile.credentials || [],
-    termsAndConditions: profile.termsAndConditions || ''
+    termsAndConditions: profile.termsAndConditions || '',
+    paymentTerms: profile.paymentTerms || '', quoteValidity: profile.quoteValidity || '30',
+    bankName: profile.bankName || '', bsb: profile.bsb || '',
+    accountName: profile.accountName || '', accountNumber: profile.accountNumber || '',
   });
 
   const handleLogoUpload = async (e) => {
@@ -628,6 +631,23 @@ const BusinessProfileEditor = ({ profile, onSave, onClose, showToast }) => {
             </div>
             <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Business Address</label><input className="w-full p-3 bg-slate-50 dark:bg-slate-800 rounded-xl outline-none border border-slate-100 dark:border-slate-700 focus:border-orange-400 focus:ring-1 focus:ring-orange-400/40 dark:text-white dark:placeholder-slate-500" value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} /></div>
             <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Global Terms & Conditions</label><textarea className="w-full p-3 bg-slate-50 dark:bg-slate-800 rounded-xl outline-none text-xs h-24 resize-none dark:text-white border border-slate-100 dark:border-slate-700 focus:border-orange-400 focus:ring-1 focus:ring-orange-400/40" placeholder="e.g. Quote valid for 30 days..." value={form.termsAndConditions} onChange={e => setForm(f => ({ ...f, termsAndConditions: e.target.value }))} /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Payment Terms</label><input className="w-full p-3 bg-slate-50 dark:bg-slate-800 rounded-xl outline-none border border-slate-100 dark:border-slate-700 focus:border-orange-400 focus:ring-1 focus:ring-orange-400/40 dark:text-white text-sm" placeholder="e.g. Net 14, COD" value={form.paymentTerms} onChange={e => setForm(f => ({ ...f, paymentTerms: e.target.value }))} /></div>
+              <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Quote Validity (days)</label><input type="number" className="w-full p-3 bg-slate-50 dark:bg-slate-800 rounded-xl outline-none border border-slate-100 dark:border-slate-700 focus:border-orange-400 focus:ring-1 focus:ring-orange-400/40 dark:text-white text-sm" placeholder="30" value={form.quoteValidity} onChange={e => setForm(f => ({ ...f, quoteValidity: e.target.value }))} /></div>
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center gap-2 mb-1"><Building2 size={15} className="text-sky-500" /><span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Bank Details (for invoices)</span></div>
+            <p className="text-[10px] text-slate-400 mb-3">Shown on invoices only when all fields are filled.</p>
+            <div className="space-y-3">
+              <input className="w-full p-3 bg-slate-50 dark:bg-slate-800 rounded-xl outline-none border border-slate-100 dark:border-slate-700 focus:border-orange-400 focus:ring-1 focus:ring-orange-400/40 dark:text-white text-sm" placeholder="Bank name" value={form.bankName} onChange={e => setForm(f => ({ ...f, bankName: e.target.value }))} />
+              <input className="w-full p-3 bg-slate-50 dark:bg-slate-800 rounded-xl outline-none border border-slate-100 dark:border-slate-700 focus:border-orange-400 focus:ring-1 focus:ring-orange-400/40 dark:text-white text-sm" placeholder="Account name" value={form.accountName} onChange={e => setForm(f => ({ ...f, accountName: e.target.value }))} />
+              <div className="grid grid-cols-2 gap-3">
+                <input className="w-full p-3 bg-slate-50 dark:bg-slate-800 rounded-xl outline-none border border-slate-100 dark:border-slate-700 focus:border-orange-400 focus:ring-1 focus:ring-orange-400/40 dark:text-white text-sm font-mono" placeholder="BSB / Sort code" value={form.bsb} onChange={e => setForm(f => ({ ...f, bsb: e.target.value }))} />
+                <input className="w-full p-3 bg-slate-50 dark:bg-slate-800 rounded-xl outline-none border border-slate-100 dark:border-slate-700 focus:border-orange-400 focus:ring-1 focus:ring-orange-400/40 dark:text-white text-sm font-mono" placeholder="Account number" value={form.accountNumber} onChange={e => setForm(f => ({ ...f, accountNumber: e.target.value }))} />
+              </div>
+            </div>
           </div>
 
           <div>
@@ -1013,12 +1033,13 @@ const SignaturePad = ({ onSave, initialData }) => {
   );
 };
 
-const NewJobModal = ({ type, onSave, onClose, user, geminiModel, userApiKey, showToast, toggleVoice, listeningField, jobs }) => {
+const NewJobModal = ({ type, onSave, onClose, user, geminiModel, userApiKey, showToast, toggleVoice, listeningField, jobs, businessProfile }) => {
   const [addr, setAddr] = useState('');
   const [client, setClient] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [showClientSuggestions, setShowClientSuggestions] = useState(false);
+  const [aiReview, setAiReview] = useState(null);
 
   const existingClients = useMemo(() => {
     const map = {};
@@ -1086,7 +1107,54 @@ const NewJobModal = ({ type, onSave, onClose, user, geminiModel, userApiKey, sho
 
       const cc = getCC();
       const today = new Date().toISOString().slice(0, 10);
-      const textPrompt = `You are a data extraction AI for a ${cc.name} tradie.\nToday: ${today}. Currency: ${cc.currency} (${cc.symbol}). Tax: ${cc.taxLabel}.\n\nExtract job details from the attached files (if any) AND the source text below.\n\nSource Text:\n"""\n${additionalText || 'No additional text provided.'}\n"""\n\nRules:\n- If a field isn't explicit in the source, return empty string. Never invent or guess client details, prices, or dates.\n- Resolve relative dates ("next Tuesday", "tomorrow") against today's date above.\n- materials and tools must be newline-separated lists, one item per line. Do not use commas to separate items.\n\nReturn ONLY a valid JSON object with keys: "address", "clientName", "clientPhone", "clientEmail", "dueDate" (ISO YYYY-MM-DD or empty), "tasks" (array of objects with keys: title, time, rate (numeric ${cc.currency}/hr), materialsCost (numeric ${cc.currency}), materials (string, items separated by \\n), tools (string, items separated by \\n), desc).`;
+      const biz = businessProfile || {};
+      const bizExclusion = (biz.name || biz.tradingName || biz.address || biz.phone || biz.email) ? `\n\nIMPORTANT — DO NOT extract the tradie's OWN business as the client. The tradie's business is:\n${biz.name ? `  Business name: ${biz.name}\n` : ''}${biz.tradingName ? `  Trading as: ${biz.tradingName}\n` : ''}${biz.address ? `  Business address: ${biz.address}\n` : ''}${biz.phone ? `  Business phone: ${biz.phone}\n` : ''}${biz.email ? `  Business email: ${biz.email}\n` : ''}If any of these appear in the source, they are the SENDER (the tradie), NOT the client. Exclude them from clientName/clientPhone/clientEmail/address fields.` : '';
+
+      const textPrompt = `You are a data extraction AI for a ${cc.name} tradie building a job quote.
+Today: ${today}. Currency: ${cc.currency} (${cc.symbol}). Tax: ${cc.taxLabel}.
+
+Extract job details from the attached files (if any) AND the source text below.
+
+Source Text:
+"""
+${additionalText || 'No additional text provided.'}
+"""${bizExclusion}
+
+DISAMBIGUATION RULES — read carefully:
+
+1. ADDRESS PRIORITY ("address" field = the physical SITE where work happens):
+   - Prefer a street-style address containing words like "Street/St", "Road/Rd", "Avenue/Ave", "Drive/Dr", "Lane", "Court/Ct", "Place/Pl", "Highway/Hwy", "Terrace", "Crescent/Cres", "Boulevard/Blvd", "Way", "Parade/Pde", or a numbered postal/zip code.
+   - DO NOT use a PO Box, Postal Bag, or "C/-" address as the site address.
+   - If the source has MULTIPLE addresses, pick the one tied to the JOB SITE — usually labelled "site address", "job address", "property", "works at", "location" — over any billing/postal address.
+   - If a postal/billing address differs from the site, put it in "billingAddress".
+
+2. CLIENT IDENTITY ("clientName" = the person/company the QUOTE IS ADDRESSED TO and who pays):
+   - This is the customer/end-client, NOT a referring agent, builder, head contractor, or property manager unless they are the actual bill-payer.
+   - If the source mentions both a head contractor and an end customer, the client is whoever is REQUESTING the quote from the tradie and will be invoiced.
+   - If there is a CONTACT PERSON at a company, put the person's name in "clientName" and the company in "clientCompany".
+   - If a project is referenced through a managing party (e.g., "via Smith Building Co. for end client John Doe"), put the requesting/managing party in "requestingParty" and the end customer in clientName.
+
+3. CONTACT DETAILS:
+   - clientPhone / clientEmail belong to the CLIENT, not the tradie's own business.
+   - If multiple phone numbers exist, prefer mobile over landline for the client contact.
+
+4. DATA HYGIENE:
+   - If a field is NOT explicit in the source, return an empty string. Never invent or guess.
+   - Resolve relative dates ("next Tuesday", "tomorrow") against today's date above.
+   - "materials" and "tools" must be newline-separated lists, one item per line. Do not use commas to separate items.
+   - In "notes", add a short (1-2 sentence) flag describing ANY ambiguity you encountered — e.g. "Two addresses found — used street address. Postal address in billingAddress." Leave empty if extraction was unambiguous.
+
+Return ONLY a valid JSON object with keys:
+  "address" (site address, string),
+  "billingAddress" (string, or "" if same as address),
+  "clientName" (person or primary client name),
+  "clientCompany" (company name if client is a contact at a company, else ""),
+  "requestingParty" (head contractor / agent / property manager if distinct from clientName, else ""),
+  "clientPhone", "clientEmail",
+  "projectReference" (any quote/job/PO/reference number from the source, else ""),
+  "dueDate" (ISO YYYY-MM-DD or ""),
+  "notes" (ambiguity flag for the tradie, else ""),
+  "tasks" (array of: title, time, rate (numeric ${cc.currency}/hr), materialsCost (numeric ${cc.currency}), materials (string, \\n separated), tools (string, \\n separated), desc).`;
 
       const resData = await smartFetchAI(
         'heavy',
@@ -1101,8 +1169,20 @@ const NewJobModal = ({ type, onSave, onClose, user, geminiModel, userApiKey, sho
       const json = JSON.parse(raw.replace(/```json\n?|```/g, '').trim());
       const toListString = (v) => Array.isArray(v) ? v.filter(Boolean).join('\n') : String(v || '');
       const tasks = (json.tasks || []).map(t => ({ title: t.title || '', time: t.time || '', rate: String(t.rate || ''), materialsCost: String(t.materialsCost || ''), materials: toListString(t.materials), tools: toListString(t.tools), desc: t.desc || '', images: [] }));
-      onSave(json.address || addr, json.clientName || client, json.clientPhone || phone, tasks, json.dueDate || dueDate, json.clientEmail || email);
-      showToast('JIM sorted it — check the details!', 'success');
+      setAiReview({
+        address: json.address || addr,
+        billingAddress: json.billingAddress || '',
+        clientName: json.clientName || client,
+        clientCompany: json.clientCompany || '',
+        requestingParty: json.requestingParty || '',
+        clientPhone: json.clientPhone || phone,
+        clientEmail: json.clientEmail || email,
+        projectReference: json.projectReference || '',
+        dueDate: json.dueDate || dueDate,
+        notes: json.notes || '',
+        tasks,
+      });
+      showToast('Review what JIM extracted before saving', 'success');
     } catch (err) {
       console.error("AI Import Error:", err); showToast(`JIM hit a wall: ${err.message}`, 'error');
     } finally { setIsImporting(false); }
@@ -1110,6 +1190,27 @@ const NewJobModal = ({ type, onSave, onClose, user, geminiModel, userApiKey, sho
 
   const isHandover = type === 'handover';
   const canUseAI = files.length > 0 || additionalText.trim().length > 0;
+
+  const confirmAiReview = () => {
+    if (!aiReview?.address?.trim()) return showToast('Address is required', 'error');
+    onSave(
+      aiReview.address.trim(),
+      aiReview.clientName.trim(),
+      aiReview.clientPhone.trim(),
+      aiReview.tasks,
+      aiReview.dueDate,
+      aiReview.clientEmail.trim(),
+      {
+        clientCompany: aiReview.clientCompany.trim(),
+        clientRef: aiReview.projectReference.trim(),
+        billingAddress: aiReview.billingAddress.trim(),
+        requestingParty: aiReview.requestingParty.trim(),
+        projectNotes: aiReview.notes.trim(),
+      }
+    );
+  };
+
+  const updateReview = (field, value) => setAiReview(r => ({ ...r, [field]: value }));
 
   return (
     <div className="fixed inset-0 z-[150] bg-slate-900/90 backdrop-blur-md flex items-end sm:items-center justify-center sm:p-4">
@@ -1128,12 +1229,97 @@ const NewJobModal = ({ type, onSave, onClose, user, geminiModel, userApiKey, sho
 
         <div className="flex justify-between items-start px-5 pt-6 pb-4 border-b border-slate-100 dark:border-slate-800">
           <div>
-            <span className={`inline-block text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest mb-1.5 ${isHandover ? 'bg-emerald-100 dark:bg-emerald-900 text-emerald-600 dark:text-emerald-300' : 'bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-300'}`}>{isHandover ? 'Completion Report' : 'Job Sheet'}</span>
-            <h2 className="text-xl font-black text-slate-900 dark:text-white">New Project</h2>
+            <span className={`inline-block text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest mb-1.5 ${aiReview ? 'bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-300' : isHandover ? 'bg-emerald-100 dark:bg-emerald-900 text-emerald-600 dark:text-emerald-300' : 'bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-300'}`}>{aiReview ? 'Review AI Extraction' : isHandover ? 'Completion Report' : 'Job Sheet'}</span>
+            <h2 className="text-xl font-black text-slate-900 dark:text-white">{aiReview ? 'Check the details' : 'New Project'}</h2>
           </div>
           <button onClick={onClose} aria-label="Close" className="w-9 h-9 flex items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-full text-slate-500 hover:text-slate-700 dark:hover:text-white transition-colors mt-1"><X size={18} /></button>
         </div>
 
+        {aiReview ? (
+          <>
+            <div className="px-5 py-4 space-y-3 max-h-[65vh] overflow-y-auto custom-scrollbar">
+              {aiReview.notes && (
+                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40 rounded-xl p-3 flex items-start gap-2">
+                  <AlertTriangle size={15} className="text-amber-500 flex-shrink-0 mt-0.5" />
+                  <div className="text-[11px] text-amber-700 dark:text-amber-300 font-medium leading-snug"><span className="font-black uppercase tracking-wider text-[10px] block mb-0.5">JIM's note</span>{aiReview.notes}</div>
+                </div>
+              )}
+
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Site Address *</label>
+                <input className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 rounded-xl outline-none font-bold dark:text-white focus:border-orange-400 focus:ring-1 focus:ring-orange-400/40 border border-slate-200 dark:border-slate-700 text-sm" value={aiReview.address} onChange={e => updateReview('address', e.target.value)} />
+              </div>
+
+              {aiReview.billingAddress && (
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Billing Address</label>
+                  <input className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 rounded-xl outline-none font-medium dark:text-white focus:border-orange-400 focus:ring-1 focus:ring-orange-400/40 border border-slate-200 dark:border-slate-700 text-sm" value={aiReview.billingAddress} onChange={e => updateReview('billingAddress', e.target.value)} />
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Client Name</label>
+                  <input className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 rounded-xl outline-none font-medium dark:text-white focus:border-orange-400 focus:ring-1 focus:ring-orange-400/40 border border-slate-200 dark:border-slate-700 text-sm" value={aiReview.clientName} onChange={e => updateReview('clientName', e.target.value)} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Client Phone</label>
+                  <input className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 rounded-xl outline-none font-medium dark:text-white focus:border-orange-400 focus:ring-1 focus:ring-orange-400/40 border border-slate-200 dark:border-slate-700 text-sm" value={aiReview.clientPhone} onChange={e => updateReview('clientPhone', e.target.value)} />
+                </div>
+              </div>
+
+              {aiReview.clientCompany && (
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Client Company</label>
+                  <input className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 rounded-xl outline-none font-medium dark:text-white focus:border-orange-400 focus:ring-1 focus:ring-orange-400/40 border border-slate-200 dark:border-slate-700 text-sm" value={aiReview.clientCompany} onChange={e => updateReview('clientCompany', e.target.value)} />
+                </div>
+              )}
+
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Client Email</label>
+                <input type="email" className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 rounded-xl outline-none font-medium dark:text-white focus:border-orange-400 focus:ring-1 focus:ring-orange-400/40 border border-slate-200 dark:border-slate-700 text-sm" value={aiReview.clientEmail} onChange={e => updateReview('clientEmail', e.target.value)} />
+              </div>
+
+              {aiReview.requestingParty && (
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Requesting Party / Head Contractor</label>
+                  <input className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 rounded-xl outline-none font-medium dark:text-white focus:border-orange-400 focus:ring-1 focus:ring-orange-400/40 border border-slate-200 dark:border-slate-700 text-sm" value={aiReview.requestingParty} onChange={e => updateReview('requestingParty', e.target.value)} />
+                  <p className="text-[10px] text-slate-400 mt-1">Distinct from the client — the agent/builder who requested the quote.</p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Due Date</label>
+                  <input type="date" className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 rounded-xl outline-none font-medium text-sm dark:text-white focus:border-orange-400 focus:ring-1 focus:ring-orange-400/40 border border-slate-200 dark:border-slate-700" value={aiReview.dueDate} onChange={e => updateReview('dueDate', e.target.value)} />
+                </div>
+                {aiReview.projectReference && (
+                  <div>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Reference</label>
+                    <input className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 rounded-xl outline-none font-medium dark:text-white focus:border-orange-400 focus:ring-1 focus:ring-orange-400/40 border border-slate-200 dark:border-slate-700 text-sm" value={aiReview.projectReference} onChange={e => updateReview('projectReference', e.target.value)} />
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-3 border border-slate-200 dark:border-slate-700">
+                <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">{aiReview.tasks.length} task{aiReview.tasks.length === 1 ? '' : 's'} extracted</p>
+                {aiReview.tasks.length === 0 ? (
+                  <p className="text-[11px] text-slate-400">No tasks extracted — you can add them after creating the project.</p>
+                ) : (
+                  <ul className="space-y-1">
+                    {aiReview.tasks.map((t, i) => (<li key={i} className="text-[11px] text-slate-600 dark:text-slate-300 truncate"><span className="font-bold">{t.title || '(untitled)'}</span>{t.time ? ` · ${t.time}` : ''}</li>))}
+                  </ul>
+                )}
+              </div>
+            </div>
+
+            <div className="flex gap-3 px-5 py-4 border-t border-slate-100 dark:border-slate-800">
+              <button onClick={() => setAiReview(null)} className="flex-1 py-3.5 rounded-xl font-black text-sm bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 transition-all">Back</button>
+              <button onClick={confirmAiReview} disabled={!aiReview.address?.trim()} className={`flex-1 py-3.5 rounded-xl font-black text-sm shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95 bg-emerald-600 hover:bg-emerald-500 text-white ${!aiReview.address?.trim() ? 'opacity-40 cursor-not-allowed' : ''}`}><Check size={15} /> Confirm & Create</button>
+            </div>
+          </>
+        ) : (
+        <>
         <div className="px-5 py-4 space-y-3 max-h-[65vh] overflow-y-auto custom-scrollbar">
           <div>
             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Job Address *</label>
@@ -1214,6 +1400,8 @@ const NewJobModal = ({ type, onSave, onClose, user, geminiModel, userApiKey, sho
             <button onClick={createWithAI} disabled={isImporting} className="flex-1 bg-purple-600 hover:bg-purple-500 text-white py-3.5 rounded-xl font-black text-sm shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95"><Sparkles size={15} /> Ask AI</button>
           )}
         </div>
+        </>
+        )}
       </div>
     </div>
   );
@@ -1249,7 +1437,20 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
   const matLabel = docStage === 'invoice' ? 'Materials Used' : 'Materials Needed';
   const toolLabel = docStage === 'invoice' ? 'Tools Used' : 'Tools Needed';
 
-  const printLicences = (biz.licences || []);
+  const docNumber = docStage === 'invoice'
+    ? (job.invoiceNumber || `INV-${new Date(header.date).getFullYear()}-${String(job.id || '').slice(-4).toUpperCase()}`)
+    : (job.quoteNumber || `QUO-${new Date(header.date).getFullYear()}-${String(job.id || '').slice(-4).toUpperCase()}`);
+
+  const validUntil = (() => {
+    if (docStage !== 'quote') return '';
+    const days = parseInt(biz.quoteValidity || '30', 10);
+    if (!days) return '';
+    const d = new Date(header.date); d.setDate(d.getDate() + days);
+    return d.toISOString().slice(0, 10);
+  })();
+
+  const hasBankDetails = docStage === 'invoice' && biz.bankName && biz.accountName && biz.accountNumber;
+  const printLicences = (biz.licences || biz.credentials || []);
   const hasInsurance = biz.insurance && biz.insurancePolicy;
 
   // Style Mapping
@@ -1519,27 +1720,48 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
           )}
 
           <div className={s.clientDivider}>
-            <div className="flex justify-between items-center mb-2">
-              <span className={`text-xs font-black uppercase tracking-widest ${s.labelColor}`}>{docLabel}</span>
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1.5"><span className="text-[10px] font-black text-slate-400 uppercase">Date:</span><input type="date" className="bg-transparent border-b border-dashed border-slate-400 text-right outline-none text-slate-800 text-xs font-bold cursor-pointer focus:border-orange-400" value={header.date} onChange={e => setHeader({ ...header, date: e.target.value })} /></div>
+            <div className="flex justify-between items-start mb-5 gap-6">
+              <div>
+                <h2 className="text-3xl font-black uppercase tracking-tight text-slate-900">{docLabel}</h2>
+                <p className="text-sm font-mono font-bold text-slate-500 mt-1">#{docNumber}</p>
+              </div>
+              <div className="text-right text-xs space-y-1 min-w-[180px]">
+                <div className="flex justify-between gap-3"><span className="font-black text-slate-400 uppercase tracking-wider">Issued</span><input type="date" className="bg-transparent text-right outline-none text-slate-800 font-bold cursor-pointer print-clean-input focus:border-orange-400" value={header.date} onChange={e => setHeader({ ...header, date: e.target.value })} /></div>
+                {docStage === 'quote' && validUntil && (
+                  <div className="flex justify-between gap-3"><span className="font-black text-slate-400 uppercase tracking-wider">Valid until</span><span className="font-bold text-slate-700">{new Date(validUntil).toLocaleDateString(cc.locale, { day: 'numeric', month: 'short', year: 'numeric' })}</span></div>
+                )}
+                <div className={`flex justify-between gap-3 ${!header.dueDate ? 'print:hidden' : ''}`}><span className="font-black text-slate-400 uppercase tracking-wider">{docStage === 'invoice' ? 'Due' : 'Target date'}</span><input type="date" className="bg-transparent text-right outline-none text-amber-600 font-bold cursor-pointer print-clean-input focus:border-orange-500" value={header.dueDate} onChange={e => setHeader({ ...header, dueDate: e.target.value })} /></div>
+                {header.clientRef && (
+                  <div className="flex justify-between gap-3"><span className="font-black text-slate-400 uppercase tracking-wider">Ref</span><input className="bg-transparent text-right outline-none font-bold text-slate-700 font-mono print-clean-input focus:border-orange-400 max-w-[120px]" value={header.clientRef} onChange={e => setHeader({ ...header, clientRef: e.target.value })} /></div>
+                )}
               </div>
             </div>
-            <input className={`w-full text-3xl font-black bg-transparent border-b border-dashed border-slate-300 mb-2 pb-1 outline-none ${!header.clientName ? 'print:hidden' : ''}`} value={header.clientName} onChange={e => setHeader({ ...header, clientName: e.target.value })} placeholder="Client Name" />
-            <input className={`w-full text-lg font-bold bg-transparent border-b border-dashed border-slate-300 mb-1 pb-1 outline-none ${!header.clientRef ? 'print:hidden' : ''}`} value={header.clientRef} onChange={e => setHeader({ ...header, clientRef: e.target.value })} placeholder="Reference" />
-            <input className={`w-full text-slate-500 font-medium bg-transparent border-b border-dashed border-slate-300 mb-2 pb-1 outline-none ${!header.address ? 'print:hidden' : ''}`} value={header.address} onChange={e => setHeader({ ...header, address: e.target.value })} placeholder="Address" />
 
-            <div className={`flex items-center gap-2 mb-2 ${!header.dueDate ? 'print:hidden' : ''}`}>
-              <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Due Date:</span>
-              <input type="date" className="bg-transparent border-b border-dashed border-amber-400 outline-none text-amber-600 font-bold text-sm cursor-pointer focus:border-orange-500" value={header.dueDate} onChange={e => setHeader({ ...header, dueDate: e.target.value })} />
+            <div className="grid grid-cols-2 gap-6 mt-3">
+              <div>
+                <p className={`mb-1.5 ${s.labelColor}`}>From</p>
+                <p className="text-sm font-black text-slate-900 dark:text-slate-900">{biz.name || '—'}</p>
+                {biz.tradingName && <p className="text-xs text-slate-500">T/A {biz.tradingName}</p>}
+                {biz.abn && <p className="text-[11px] text-slate-500 font-mono">{cc.regLabel} {biz.abn}</p>}
+                {biz.address && <p className="text-[11px] text-slate-500 leading-snug whitespace-pre-line">{biz.address}</p>}
+                {biz.phone && <p className="text-[11px] text-slate-500">{biz.phone}</p>}
+                {biz.email && <p className="text-[11px] text-slate-500">{biz.email}</p>}
+              </div>
+              <div>
+                <p className={`mb-1.5 ${s.labelColor}`}>{docStage === 'invoice' ? 'Bill To' : 'Prepared For'}</p>
+                <input className={`w-full text-sm font-black text-slate-900 bg-transparent outline-none print-clean-input focus:border-orange-400 mb-1 ${!header.clientName ? 'print:hidden' : ''}`} value={header.clientName} onChange={e => setHeader({ ...header, clientName: e.target.value })} placeholder="Client name" />
+                <textarea rows={2} className={`w-full text-[11px] text-slate-500 leading-snug bg-transparent outline-none resize-none print-clean-input focus:border-orange-400 ${!header.address ? 'print:hidden' : ''}`} value={header.address} onChange={e => setHeader({ ...header, address: e.target.value })} placeholder="Site address" />
+                {(job.clientPhone || job.clientEmail) && (
+                  <div className="mt-1 space-y-0.5">
+                    {job.clientPhone && <p className="text-[11px] text-slate-500">{job.clientPhone}</p>}
+                    {job.clientEmail && <p className="text-[11px] text-slate-500">{job.clientEmail}</p>}
+                  </div>
+                )}
+              </div>
             </div>
 
-            <PrintEditableDiv value={header.projectNotes} onChange={v => setHeader({ ...header, projectNotes: v })} placeholder="Project notes / Document Summary" className={`w-full text-sm italic bg-transparent border-b border-dashed border-slate-300 mb-2 pb-1 ${!header.projectNotes ? 'print:hidden' : ''}`} />
-            {header.projectPhotos?.length > 0 && <div className="flex gap-2 mt-2 overflow-x-auto">{header.projectPhotos.map((p, i) => <img key={i} src={p} className="h-16 rounded-lg" alt="" />)}</div>}
-            <div className="flex gap-4 mt-2 text-sm font-medium text-slate-600">
-              <span>TOTAL TIME: {fmtMins(totalHours)}</span>
-              {showCosts && totals.total > 0 && <span>TOTAL: {fmtAUD(totals.total)} {job.gstEnabled ? `(inc. ${getCC().taxLabel})` : ''}</span>}
-            </div>
+            <PrintEditableDiv value={header.projectNotes} onChange={v => setHeader({ ...header, projectNotes: v })} placeholder="Project summary (optional)" className={`w-full text-[12px] italic text-slate-600 bg-transparent print-clean-input mt-5 pt-3 border-t border-slate-100 ${!header.projectNotes ? 'print:hidden' : ''}`} />
+            {header.projectPhotos?.length > 0 && <div className="flex gap-2 mt-3 overflow-x-auto">{header.projectPhotos.map((p, i) => <img key={i} src={p} className={`h-16 ${s.imgRounded}`} alt="" />)}</div>}
           </div>
 
           <div className="space-y-4">
@@ -1612,6 +1834,26 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
                 <p className={s.totalAmount}>{fmtAUD(totals.total)}</p>
                 {job.gstEnabled && <p className={`text-xs font-bold mt-1 ${s.gstIncluded}`}>{getCC().taxLabel} included: {fmtAUD(totals.gst)}</p>}
               </div>
+            </div>
+          )}
+
+          {(biz.paymentTerms || hasBankDetails) && (
+            <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-5 break-inside-avoid">
+              {biz.paymentTerms && (
+                <div className="border-l-4 border-slate-300 pl-4 py-1">
+                  <p className={`mb-1 ${s.labelColor}`}>Payment Terms</p>
+                  <p className="text-[12px] text-slate-700 font-medium whitespace-pre-line">{biz.paymentTerms}</p>
+                </div>
+              )}
+              {hasBankDetails && (
+                <div className="border-l-4 border-emerald-400 pl-4 py-1">
+                  <p className={`mb-1 ${s.labelColor}`}>Pay To</p>
+                  <p className="text-[12px] text-slate-800 font-bold">{biz.accountName}</p>
+                  <p className="text-[11px] text-slate-500">{biz.bankName}</p>
+                  <p className="text-[11px] text-slate-600 font-mono">{biz.bsb ? `BSB ${biz.bsb}  ·  ` : ''}Acct {biz.accountNumber}</p>
+                  {docNumber && <p className="text-[10px] text-slate-400 mt-1">Reference: <span className="font-mono font-bold text-slate-700">{docNumber}</span></p>}
+                </div>
+              )}
             </div>
           )}
 
@@ -3418,14 +3660,23 @@ Return ONLY a valid JSON object. Format: {"cost": 123.45, "items": "Hammer\\nNai
     reader.readAsText(file);
   };
 
-  const handleCreateJob = (address, clientName, clientPhone, tasks = [], dueDate = '', clientEmail = '') => {
+  const handleCreateJob = (address, clientName, clientPhone, tasks = [], dueDate = '', clientEmail = '', extras = {}) => {
     const now = Date.now();
     const isHandover = newJobModal === 'handover';
+    const projectNotesParts = [];
+    if (extras.requestingParty) projectNotesParts.push(`Requesting party: ${extras.requestingParty}`);
+    if (extras.billingAddress) projectNotesParts.push(`Billing address: ${extras.billingAddress}`);
+    if (extras.projectNotes) projectNotesParts.push(extras.projectNotes);
     const newJob = {
       id: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : now.toString(),
       date: new Date(now).toISOString(), createdAt: now, type: newJobModal,
-      address, clientName, clientPhone, clientEmail, clientRef: '',
-      dueDate: dueDate || '', projectNotes: '', projectPhotos: [],
+      address,
+      clientName: extras.clientCompany ? `${clientName}${clientName ? ' · ' : ''}${extras.clientCompany}` : clientName,
+      clientPhone, clientEmail,
+      clientRef: extras.clientRef || '',
+      billingAddress: extras.billingAddress || '',
+      requestingParty: extras.requestingParty || '',
+      dueDate: dueDate || '', projectNotes: projectNotesParts.join('\n'), projectPhotos: [],
       tasks: tasks.map(t => ({ ...t, id: Date.now() + Math.random() })),
       status: isHandover ? 'completed' : 'draft',
       gstEnabled: false, showCosts: isHandover ? false : true,
@@ -4188,7 +4439,7 @@ Return ONLY a valid JSON object. Format: {"cost": 123.45, "items": "Hammer\\nNai
       {/* Modals */}
       {showSettings && <SettingsModal geminiModel={geminiModel} userApiKey={userApiKey} extraTaxRate={extraTaxRate} countryCode={countryCode} isDarkMode={isDarkMode} toggleTheme={() => setIsDarkMode(!isDarkMode)} exportData={exportData} importData={importData} userTemplates={userTemplates} saveUserTemplates={saveUserTemplates} userMaterials={userMaterials} saveUserMaterials={saveUserMaterials} businessProfile={businessProfile} saveBusinessProfile={saveBusinessProfile} onSave={(m, k, t, cc) => { setGeminiModel(m); setUserApiKey(k); setExtraTaxRate(Number(t)); const c = cc || 'AU'; localStorage.setItem('geminiModel', m); localStorage.setItem('userGeminiApiKey', k); localStorage.setItem('joblog-extratax', t); localStorage.setItem('jim-country', c); _cc = c; setCountryCode(c); }} onClose={() => setShowSettings(false)} showToast={showToast} dbSize={dbSize} isPro={isUnlocked} onUnlockPro={handleUnlockSuccess} onDeleteAccount={handleDeleteAccount} uid={user?.uid} />}
       {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} onUnlock={handleUnlockSuccess} showToast={showToast} uid={user?.uid} />}
-      {newJobModal && <NewJobModal type={newJobModal} user={user} geminiModel={geminiModel} userApiKey={userApiKey} onSave={handleCreateJob} onClose={() => setNewJobModal(null)} showToast={showToast} toggleVoice={toggleVoice} listeningField={listeningField} jobs={jobs} />}
+      {newJobModal && <NewJobModal type={newJobModal} user={user} geminiModel={geminiModel} userApiKey={userApiKey} onSave={handleCreateJob} onClose={() => setNewJobModal(null)} showToast={showToast} toggleVoice={toggleVoice} listeningField={listeningField} jobs={jobs} businessProfile={businessProfile} />}
 
       {showAIAssistModal && activeJob && <AIAssistModal onClose={() => setShowAIAssistModal(false)} onGenerate={handleGenerateDocument} isGenerating={isGenerating} docType={isCompletionDoc(activeJob) ? 'Completion Invoice' : 'Quotation'} toggleVoice={toggleVoice} listeningField={listeningField} />}
       {rejectingJobId && <RejectSheet job={jobs.find(j => j.id === rejectingJobId)} onCancel={() => setRejectingJobId(null)} onConfirm={(reason, note) => { rejectJob(rejectingJobId, reason, note); setRejectingJobId(null); }} />}
