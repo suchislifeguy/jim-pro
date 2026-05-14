@@ -166,11 +166,10 @@ const JimMascot = ({ size = 36, state = 'idle' }) => {
       <circle cx="23.4" cy="26.3" r="0.55" fill="#ffffff" />
       <circle cx="35.4" cy="26.3" r="0.55" fill="#ffffff" />
       {/* Upper lash line */}
-      <path d="M 20.9 26.4 Q 24 24.6 27.1 26.4" stroke="#1c1917" strokeWidth="0.7" fill="none" strokeLinecap="round" />
-      <path d="M 32.9 26.4 Q 36 24.6 39.1 26.4" stroke="#1c1917" strokeWidth="0.7" fill="none" strokeLinecap="round" />
+      <path d="M 20.9 26.4 Q 24 24 27.1 26.4" stroke="#1c1917" strokeWidth="0.7" fill="none" strokeLinecap="round" />
+      <path d="M 32.9 26.4 Q 36 24 39.1 26.4" stroke="#1c1917" strokeWidth="0.7" fill="none" strokeLinecap="round" />
       {/* Lower lid soft shadow */}
-      <path d="M 21.2 28.2 Q 24 29 26.8 28.2" stroke="#a16207" strokeWidth="0.5" fill="none" strokeLinecap="round" opacity="0.6" />
-      <path d="M 33.2 28.2 Q 36 29 38.8 28.2" stroke="#a16207" strokeWidth="0.5" fill="none" strokeLinecap="round" opacity="0.6" />
+
 
       {/* Eyebrows — thicker, tapered */}
       <path d="M 20.5 23.2 Q 24 20.8 27.5 23" stroke="#451a03" strokeWidth="1.6" fill="none" strokeLinecap="round" />
@@ -183,23 +182,15 @@ const JimMascot = ({ size = 36, state = 'idle' }) => {
       {/* Handlebar Mustache */}
       <g className="jim-mustache">
       <path d="M 30 34
-               C 28.5 33 26.5 32.4 24 32.6
-               C 21.5 32.8 19.5 33.6 18.2 35
-               C 17.6 35.7 17.8 36.2 18.6 36
-               C 19.8 35.7 20.8 35.5 21.8 35.6
-               C 20.6 36.4 19.8 37.3 19.6 38.1
-               C 19.5 38.6 19.9 38.8 20.4 38.5
-               C 22 37.5 24 36.8 26 36.7
-               C 27.6 36.6 28.9 36.9 30 37.6
-               C 31.1 36.9 32.4 36.6 34 36.7
-               C 36 36.8 38 37.5 39.6 38.5
-               C 40.1 38.8 40.5 38.6 40.4 38.1
-               C 40.2 37.3 39.4 36.4 38.2 35.6
-               C 39.2 35.5 40.2 35.7 41.4 36
-               C 42.2 36.2 42.4 35.7 41.8 35
-               C 40.5 33.6 38.5 32.8 36 32.6
-               C 33.5 32.4 31.5 33 30 34 Z"
-            fill="#451a03" />
+      C 28.5 33 26.5 32.4 24 32.6
+      C 21.5 32.8 19.5 33.6 18.2 35
+      C 17.6 35.7 17.8 36.2 18.6 36
+      C 19.8 35.7 20.8 35.5 21.8 35.6
+      C 39.2 35.5 40.2 35.7 41.4 36
+      C 42.2 36.2 42.4 35.7 41.8 35
+      C 40.5 33.6 38.5 32.8 36 32.6
+      C 33.5 32.4 31.5 33 30 34 Z"
+      fill="#451a03" />
       {/* Mustache highlight */}
       <path d="M 22 34.2 Q 26 33.4 29.6 34.4" stroke="#78350f" strokeWidth="0.4" fill="none" strokeLinecap="round" opacity="0.7" />
       <path d="M 30.4 34.4 Q 34 33.4 38 34.2" stroke="#78350f" strokeWidth="0.4" fill="none" strokeLinecap="round" opacity="0.7" />
