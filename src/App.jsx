@@ -2381,8 +2381,8 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
           <div className="flex flex-col gap-1.5 sm:gap-2">
             <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">View Mode</label>
             <div className="flex p-1 bg-slate-100 dark:bg-slate-900 rounded-xl">
-              <button onClick={() => setPdfViewMode('fit')} className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${pdfViewMode === 'fit' ? 'bg-white dark:bg-slate-800 text-orange-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Fit width</button>
-              <button onClick={() => setPdfViewMode('readable')} className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${pdfViewMode === 'readable' ? 'bg-white dark:bg-slate-800 text-orange-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Readable</button>
+              <button onClick={() => setPdfViewMode('fit')} className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${pdfViewMode === 'fit' ? 'bg-white dark:bg-slate-800 text-orange-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Narrow view</button>
+              <button onClick={() => setPdfViewMode('readable')} className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${pdfViewMode === 'readable' ? 'bg-white dark:bg-slate-800 text-orange-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Wide view</button>
             </div>
           </div>
         </div>
