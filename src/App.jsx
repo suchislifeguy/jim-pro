@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, Component, useMemo } from 'react';
 import ReloadPrompt from './components/ReloadPrompt';
-import { syncWrite, coldStartSync, syncAll, deleteUserDocs } from './sync';
+import { syncWrite, coldStartSync, syncAll, deleteUserDocs, backfillCreatedAt } from './sync';
 import { deleteUser } from 'firebase/auth';
 import { createPortal } from 'react-dom';
 import { get, set } from 'idb-keyval';
@@ -255,6 +255,22 @@ const COUNTRY_CONFIGS = {
 let _cc = localStorage.getItem('jim-country') || 'AU';
 const getCC = () => COUNTRY_CONFIGS[_cc] || COUNTRY_CONFIGS.AU;
 
+// 24-hour clock preference — module-level so non-component helpers (formatLocal, formatTime) can read it.
+// Stored as 'true' / 'false'; if unset, default per country (GB/IE → 24h, rest → 12h).
+let _time24h = (() => {
+  const stored = localStorage.getItem('jim-time-24h');
+  if (stored === 'true') return true;
+  if (stored === 'false') return false;
+  return _cc === 'GB' || _cc === 'IE';
+})();
+const setTime24hPref = (v) => {
+  _time24h = !!v;
+  localStorage.setItem('jim-time-24h', _time24h ? 'true' : 'false');
+};
+const timeOpts = () => _time24h
+  ? { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }
+  : { hour: 'numeric', minute: '2-digit' };
+
 // --- Utility Functions ---
 const formatLocal = (input, style = 'default') => {
   if (!input) return '';
@@ -264,7 +280,8 @@ const formatLocal = (input, style = 'default') => {
   if (style === 'iso-datetime') return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   const loc = getCC().locale;
   if (style === 'short') return d.toLocaleDateString(loc, { day: 'numeric', month: 'short', year: '2-digit' });
-  if (style === 'datetime') return d.toLocaleString(loc, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+  if (style === 'datetime') return d.toLocaleString(loc, { day: 'numeric', month: 'short', ...timeOpts() });
+  if (style === 'time') return d.toLocaleTimeString(loc, timeOpts());
   return d.toLocaleDateString(loc);
 };
 
@@ -300,6 +317,40 @@ const smartFetchAI = async (taskType, contents, generationConfig, user, userMode
     throw new Error('AI is overloaded right now — try again in a minute.');
   }
   throw new Error(errBody.error || `AI request failed (${res.status})`);
+};
+
+const STRIPE_PRICE_MONTHLY = import.meta.env.VITE_STRIPE_PRICE_MONTHLY || '';
+const STRIPE_PRICE_YEARLY  = import.meta.env.VITE_STRIPE_PRICE_YEARLY  || '';
+
+const openUpgradeCheckout = async (user, plan = 'monthly') => {
+  const priceId = plan === 'yearly' ? STRIPE_PRICE_YEARLY : STRIPE_PRICE_MONTHLY;
+  if (!priceId) throw new Error('Stripe price ID not configured');
+  const idToken = await user.getIdToken();
+  const origin = window.location.origin;
+  const res = await fetch(`${AI_PROXY_BASE}/createCheckout`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+    body: JSON.stringify({
+      priceId,
+      successUrl: `${origin}/?pro=success`,
+      cancelUrl: `${origin}/?pro=cancel`,
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.url) throw new Error(data.error || 'Checkout failed');
+  window.location.href = data.url;
+};
+
+const openBillingPortal = async (user) => {
+  const idToken = await user.getIdToken();
+  const res = await fetch(`${AI_PROXY_BASE}/billingPortal`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+    body: JSON.stringify({ returnUrl: window.location.origin }),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.url) throw new Error(data.error || 'Billing portal unavailable');
+  window.location.href = data.url;
 };
 
 const aiUploadFileProxy = async (file, user, userApiKey) => {
@@ -523,19 +574,29 @@ const ConfirmDialog = ({ message, confirmLabel = 'Delete', onConfirm, onCancel, 
   </div>
 );
 
-const UpgradeModal = ({ onClose, onUnlock, showToast, uid }) => {
-  const stripeLink = `${import.meta.env.VITE_STRIPE_LINK || '#'}?client_reference_id=${uid}`;
+const UpgradeModal = ({ onClose, onUnlock, showToast, user }) => {
+  const [loading, setLoading] = useState(null);
+  const go = async (plan) => {
+    setLoading(plan);
+    try { await openUpgradeCheckout(user, plan); }
+    catch (e) { showToast(e.message || 'Could not start checkout', 'error'); setLoading(null); }
+  };
   return (
     <div className="fixed inset-0 z-[300] bg-slate-900/90 backdrop-blur-md flex items-end sm:items-center justify-center sm:p-4 overflow-y-auto">
       <div className="bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl w-full max-w-md p-6 sm:p-8 shadow-2xl border dark:border-slate-800 animate-slide-up sm:animate-none pb-safe text-center my-auto">
         <div className="flex justify-end mb-2"><button onClick={onClose} aria-label="Close" className="w-9 h-9 flex items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-full text-slate-500 hover:text-slate-700 dark:hover:text-white transition-colors"><X size={18} /></button></div>
         <div className="w-16 h-16 bg-orange-100 dark:bg-orange-900/40 rounded-full flex items-center justify-center mx-auto mb-4"><Lock size={32} className="text-orange-500" /></div>
-        <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-2">Limit Reached</h2>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">You've reached the 3-job free limit. Upgrade to Pro for unlimited features.</p>
-        <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl mb-6 border border-slate-200 dark:border-slate-700 text-left">
-          <h3 className="font-black text-sm mb-1 text-slate-800 dark:text-white">Upgrade to JIM Pro</h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 font-medium">Unlock unlimited projects and AI-powered tools.</p>
-          <a href={stripeLink} target="_blank" rel="noopener noreferrer" className="block text-center w-full py-3 rounded-xl bg-orange-500 hover:bg-orange-400 text-white font-black text-sm transition-colors">Upgrade Now</a>
+        <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-2">Upgrade to Pro</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">Unlimited projects, unlimited AI, priority support.</p>
+        <div className="space-y-3 text-left">
+          <button disabled={!!loading} onClick={() => go('monthly')} className="w-full py-4 rounded-2xl bg-orange-500 hover:bg-orange-400 disabled:opacity-60 text-white font-black text-sm transition-colors flex items-center justify-between px-5">
+            <span>{loading === 'monthly' ? 'Opening checkout…' : 'Monthly'}</span>
+            <span className="font-extrabold">$29<span className="text-xs font-bold opacity-80">/mo</span></span>
+          </button>
+          <button disabled={!!loading} onClick={() => go('yearly')} className="w-full py-4 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:opacity-90 disabled:opacity-60 font-black text-sm transition-opacity flex items-center justify-between px-5">
+            <span>{loading === 'yearly' ? 'Opening checkout…' : 'Yearly — save 17%'}</span>
+            <span className="font-extrabold">$290<span className="text-xs font-bold opacity-80">/yr</span></span>
+          </button>
         </div>
       </div>
     </div>
@@ -825,7 +886,7 @@ const MaterialManager = ({ materials, onSave, onClose }) => {
   );
 };
 
-const SettingsModal = ({ geminiModel, userApiKey, extraTaxRate, countryCode, onSave, onClose, isDarkMode, toggleTheme, exportData, importData, userTemplates, saveUserTemplates, userMaterials, saveUserMaterials, businessProfile, saveBusinessProfile, showToast, dbSize, isPro, onUnlockPro, onDeleteAccount, uid }) => {
+const SettingsModal = ({ geminiModel, userApiKey, extraTaxRate, countryCode, onSave, onClose, isDarkMode, toggleTheme, time24h, toggleTime24h, exportData, importData, userTemplates, saveUserTemplates, userMaterials, saveUserMaterials, businessProfile, saveBusinessProfile, showToast, dbSize, isPro, onUnlockPro, onDeleteAccount, user }) => {
   const cc = getCC();
   const [draftModel, setDraftModel] = useState(geminiModel);
   const [draftApiKey, setDraftApiKey] = useState(userApiKey);
@@ -960,15 +1021,27 @@ const SettingsModal = ({ geminiModel, userApiKey, extraTaxRate, countryCode, onS
               {/* Appearance */}
               <div>
                 <label className={sectionLabel}>Appearance</label>
-                <button onClick={toggleTheme} className="w-full flex items-center justify-between px-4 h-14 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-800 transition-all">
-                  <div className="flex items-center gap-3 text-sm font-semibold text-slate-700 dark:text-slate-200">
-                    {isDarkMode ? <Moon size={17} className="text-slate-400" /> : <Sun size={17} className="text-amber-500" />}
-                    {isDarkMode ? 'Dark' : 'Light'}
-                  </div>
-                  <div className={`w-10 h-6 rounded-full transition-all flex items-center px-0.5 ${isDarkMode ? 'bg-orange-500 justify-end' : 'bg-slate-300 justify-start'}`}>
-                    <div className="w-5 h-5 rounded-full bg-white shadow" />
-                  </div>
-                </button>
+                <div className="space-y-2">
+                  <button onClick={toggleTheme} className="w-full flex items-center justify-between px-4 h-14 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-800 transition-all">
+                    <div className="flex items-center gap-3 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                      {isDarkMode ? <Moon size={17} className="text-slate-400" /> : <Sun size={17} className="text-amber-500" />}
+                      {isDarkMode ? 'Dark' : 'Light'}
+                    </div>
+                    <div className={`w-10 h-6 rounded-full transition-all flex items-center px-0.5 ${isDarkMode ? 'bg-orange-500 justify-end' : 'bg-slate-300 justify-start'}`}>
+                      <div className="w-5 h-5 rounded-full bg-white shadow" />
+                    </div>
+                  </button>
+                  <button onClick={toggleTime24h} className="w-full flex items-center justify-between px-4 h-14 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-800 transition-all">
+                    <div className="flex items-center gap-3 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                      <Clock size={17} className="text-slate-400" />
+                      24-hour time
+                      <span className="text-xs font-medium text-slate-400 ml-1">{time24h ? '18:30' : '6:30 PM'}</span>
+                    </div>
+                    <div className={`w-10 h-6 rounded-full transition-all flex items-center px-0.5 ${time24h ? 'bg-orange-500 justify-end' : 'bg-slate-300 justify-start'}`}>
+                      <div className="w-5 h-5 rounded-full bg-white shadow" />
+                    </div>
+                  </button>
+                </div>
               </div>
 
               {/* Advanced AI */}
@@ -1001,11 +1074,26 @@ const SettingsModal = ({ geminiModel, userApiKey, extraTaxRate, countryCode, onS
               <div>
                 <label className={sectionLabel}>Pro Licence</label>
                 {isPro ? (
-                  <div className="flex items-center gap-2 px-4 h-14 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/60 rounded-2xl text-emerald-700 dark:text-emerald-400 font-semibold text-sm"><CheckCircle2 size={16} /> Full version active</div>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 px-4 h-14 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/60 rounded-2xl text-emerald-700 dark:text-emerald-400 font-semibold text-sm"><CheckCircle2 size={16} /> Full version active</div>
+                    <button
+                      onClick={async () => {
+                        try { await openBillingPortal(user); }
+                        catch (e) { showToast(e.message || 'Billing portal unavailable', 'error'); }
+                      }}
+                      className="w-full h-11 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    >Manage Subscription</button>
+                  </div>
                 ) : (
                   <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-3">
-                    <p className="text-xs text-slate-600 dark:text-slate-400 font-medium leading-relaxed">Upgrade to Pro to unlock unlimited projects.</p>
-                    <a href={`${import.meta.env.VITE_STRIPE_LINK || '#'}?client_reference_id=${uid}`} target="_blank" rel="noopener noreferrer" className="w-full block text-center bg-orange-500 hover:bg-orange-400 text-white h-11 rounded-xl font-bold text-sm leading-[44px] transition-colors shadow-lg shadow-orange-500/20">Upgrade Now</a>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 font-medium leading-relaxed">Upgrade to Pro to unlock unlimited projects and AI.</p>
+                    <button
+                      onClick={async () => {
+                        try { await openUpgradeCheckout(user, 'monthly'); }
+                        catch (e) { showToast(e.message || 'Could not start checkout', 'error'); }
+                      }}
+                      className="w-full block text-center bg-orange-500 hover:bg-orange-400 text-white h-11 rounded-xl font-bold text-sm transition-colors shadow-lg shadow-orange-500/20"
+                    >Upgrade to Pro — $29/mo</button>
                   </div>
                 )}
               </div>
@@ -1198,7 +1286,7 @@ Return ONLY a valid JSON object with keys:
       const resData = await smartFetchAI(
         'heavy',
         [{ parts: [{ text: textPrompt }, ...fileParts] }],
-        { temperature: 0, response_mime_type: 'application/json' },
+        { temperature: 0, response_mime_type: 'application/json', maxOutputTokens: 4096 },
         user,
         geminiModel,
         userApiKey
@@ -1961,6 +2049,45 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
   const [showImages, setShowImages] = useState(true);
   const [groupPhotosByTask, setGroupPhotosByTask] = useState(false);
 
+  // Preview view-mode: 'fit' shrinks the document to viewport width (looks like a real PDF on phone);
+  // 'readable' lets it reflow to the screen. Mobile defaults to 'fit', desktop to 'readable'.
+  const [pdfViewMode, setPdfViewMode] = useState(() => (typeof window !== 'undefined' && window.innerWidth < 640) ? 'fit' : 'readable');
+  const [pdfViewLoaded, setPdfViewLoaded] = useState(false);
+  const [pdfScale, setPdfScale] = useState(1);
+  const [pdfScaledHeight, setPdfScaledHeight] = useState(null);
+  const scaleOuterRef = useRef(null);
+  const pdfContentRef = useRef(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    get('joblog-pdf-view-mode').then(saved => {
+      if (!cancelled && (saved === 'fit' || saved === 'readable')) setPdfViewMode(saved);
+      if (!cancelled) setPdfViewLoaded(true);
+    }).catch(() => { if (!cancelled) setPdfViewLoaded(true); });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => { if (pdfViewLoaded) set('joblog-pdf-view-mode', pdfViewMode).catch(() => {}); }, [pdfViewMode, pdfViewLoaded]);
+
+  useEffect(() => {
+    if (pdfViewMode !== 'fit') { setPdfScale(1); setPdfScaledHeight(null); return; }
+    const outer = scaleOuterRef.current;
+    const inner = pdfContentRef.current;
+    if (!outer || !inner) return;
+    const NATURAL_W = 768; // matches max-w-3xl on desktop
+    const recompute = () => {
+      const w = outer.clientWidth;
+      const s = Math.min(1, w / NATURAL_W);
+      setPdfScale(s);
+      setPdfScaledHeight(inner.scrollHeight * s);
+    };
+    recompute();
+    const ro = new ResizeObserver(recompute);
+    ro.observe(outer);
+    ro.observe(inner);
+    return () => ro.disconnect();
+  }, [pdfViewMode, tasks, showImages, showBusinessHeader, signatureEnabled, docStage, docStyle, groupPhotosByTask, header]);
+
   useEffect(() => { onUpdateJob({ ...job, tasks, date: new Date(header.date).toISOString(), showSignature: signatureEnabled, signature: signatureData, quoteNumber: header.quoteNumber, invoiceNumber: header.invoiceNumber, receiptNumber: header.receiptNumber, paidDate: header.paidDate, paymentMethod: header.paymentMethod }); }, [header.date, header.dueDate, header.quoteNumber, header.invoiceNumber, header.receiptNumber, header.paidDate, header.paymentMethod, signatureEnabled, signatureData, tasks]);
 
   const updateTask = (index, field, value) => { const updated = [...tasks]; updated[index] = { ...updated[index], [field]: value }; setTasks(updated); };
@@ -2184,7 +2311,7 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
             <h2 className="text-lg font-extrabold text-slate-800 dark:text-white">Preview</h2>
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
-            <button onClick={handlePreviewSave} disabled={isGeneratingPDF} className="h-9 px-3 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg font-semibold flex items-center gap-1.5 text-xs transition-colors hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-60"><Printer size={13} /> Preview and Save</button>
+            <button onClick={handlePreviewSave} disabled={isGeneratingPDF} className="h-9 px-3 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg font-semibold flex items-center gap-1.5 text-xs transition-colors hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-60"><FileDown size={13} /> Save as PDF</button>
             <button onClick={handleEmail} className="h-9 px-3 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg font-semibold flex items-center gap-1.5 text-xs transition-colors hover:bg-slate-50 dark:hover:bg-slate-700"><Mail size={13} /> Email</button>
             {job.clientPhone && (
               <button onClick={handleSMS} className="h-9 px-3 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg font-semibold flex items-center gap-1.5 text-xs transition-colors hover:bg-slate-50 dark:hover:bg-slate-700"><MessageSquare size={13} /> SMS</button>
@@ -2245,9 +2372,24 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
               })}
             </div>
           </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">View Mode</label>
+            <div className="flex p-1 bg-slate-100 dark:bg-slate-900 rounded-xl">
+              <button onClick={() => setPdfViewMode('fit')} className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${pdfViewMode === 'fit' ? 'bg-white dark:bg-slate-800 text-orange-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Fit width</button>
+              <button onClick={() => setPdfViewMode('readable')} className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${pdfViewMode === 'readable' ? 'bg-white dark:bg-slate-800 text-orange-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Readable</button>
+            </div>
+          </div>
         </div>
 
-        <div id="pdf-content" className={`${s.container} ${s.fontFamily}`}>
+        <div
+          ref={scaleOuterRef}
+          className="overflow-x-hidden"
+          style={pdfViewMode === 'fit' && pdfScaledHeight ? { height: `${pdfScaledHeight}px` } : null}
+        >
+        <div
+          style={pdfViewMode === 'fit' ? { width: '768px', transformOrigin: 'top left', transform: `scale(${pdfScale})` } : null}
+        >
+        <div id="pdf-content" ref={pdfContentRef} className={`${s.container} ${s.fontFamily}`}>
           {showBusinessHeader && biz.name && (
             <div className={s.headerLine}>
               <div className="flex justify-between items-start gap-4">
@@ -2448,6 +2590,8 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
               {biz.termsAndConditions}
             </div>
           )}
+        </div>
+        </div>
         </div>
       </div>
     </div>,
@@ -3373,6 +3517,8 @@ const App = ({ user }) => {
   const [businessProfile, setBusinessProfile] = useState(() => { try { return JSON.parse(localStorage.getItem(BIZA_KEY) || '{}'); } catch { return {}; } });
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [userTier, setUserTier] = useState(null);
+  const [proWelcome, setProWelcome] = useState(false);
+  const [proConfirming, setProConfirming] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [extraTaxRate, setExtraTaxRate] = useState(() => Number(localStorage.getItem('joblog-extratax') || 0));
   const [countryCode, setCountryCode] = useState(() => localStorage.getItem('jim-country') || 'AU');
@@ -3385,6 +3531,8 @@ const App = ({ user }) => {
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [dbSize, setDbSize] = useState('0 MB');
   const [isDarkMode, setIsDarkMode] = useState(() => { const saved = localStorage.getItem('theme'); if (saved !== null) return saved === 'dark'; return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches; });
+  const [time24h, setTime24h] = useState(() => _time24h);
+  const toggleTime24h = () => { const next = !time24h; setTime24h(next); setTime24hPref(next); };
   const [newJobModal, setNewJobModal] = useState(null);
   const [searchQ, setSearchQ] = useState('');
   const [filterType, setFilterType] = useState('all');
@@ -3484,17 +3632,52 @@ const App = ({ user }) => {
     loadJobs(); loadTemplates(); loadMaterials(); loadAppointments(); loadTimesheets();
 
     if (user?.uid) {
-      user.getIdToken().then(idToken =>
-        fetch(`${AI_PROXY_BASE}/status`, { headers: { Authorization: `Bearer ${idToken}` } })
-          .then(r => r.ok ? r.json() : null)
-          .then(data => {
-            if (data?.tier) {
-              setUserTier(data.tier);
-              if (data.tier !== 'free') setIsUnlocked(true);
+      const params = new URLSearchParams(window.location.search);
+      const justCheckedOut = params.get('pro') === 'success';
+
+      // Backfill createdAt for accounts that predate Phase 4 (otherwise the Worker's 30-day
+      // AI trial cutoff treats them as trial-active forever).
+      const creationMs = user.metadata?.creationTime ? new Date(user.metadata.creationTime).getTime() : null;
+      if (creationMs) backfillCreatedAt(user.uid, creationMs).catch(() => {});
+
+      const fetchStatus = async () => {
+        const idToken = await user.getIdToken();
+        const r = await fetch(`${AI_PROXY_BASE}/status`, { headers: { Authorization: `Bearer ${idToken}` } });
+        if (!r.ok) return null;
+        return await r.json();
+      };
+
+      const applyStatus = (data) => {
+        if (!data?.tier) return false;
+        setUserTier(data.tier);
+        if (data.tier !== 'free') { setIsUnlocked(true); return true; }
+        return false;
+      };
+
+      if (justCheckedOut) {
+        setProWelcome(true);
+        setProConfirming(true);
+        let attempts = 0;
+        const poll = async () => {
+          attempts++;
+          try {
+            const data = await fetchStatus();
+            if (applyStatus(data)) {
+              setProConfirming(false);
+              // Clean ?pro=success from URL
+              const url = new URL(window.location.href);
+              url.searchParams.delete('pro');
+              window.history.replaceState({}, '', url);
+              return;
             }
-          })
-          .catch(() => { })
-      );
+          } catch { }
+          if (attempts < 8) setTimeout(poll, 2000);
+          else setProConfirming(false); // give up after ~16s; user can refresh
+        };
+        poll();
+      } else {
+        fetchStatus().then(applyStatus).catch(() => {});
+      }
 
       // Background sync — refresh state for any collections Firestore had newer data for
       coldStartSync(user.uid, SYNC_COLLECTIONS).then(updated => {
@@ -3676,7 +3859,7 @@ const App = ({ user }) => {
       .sort((a, b) => new Date(a.start) - new Date(b.start))
       .map(a => {
         const j = jobs.find(x => x.id === a.jobId);
-        return `  • ${new Date(a.start).toLocaleDateString(cc.locale, { weekday: 'short', day: 'numeric', month: 'short' })} ${new Date(a.start).toLocaleTimeString(cc.locale, { hour: '2-digit', minute: '2-digit' })}: ${a.title}${j ? ` — ${j.address}` : ''}`;
+        return `  • ${new Date(a.start).toLocaleDateString(cc.locale, { weekday: 'short', day: 'numeric', month: 'short' })} ${formatLocal(a.start, 'time')}: ${a.title}${j ? ` — ${j.address}` : ''}`;
       }).join('\n');
 
     const weekStart = now - (new Date().getDay() || 7) * 24 * 60 * 60 * 1000;
@@ -3833,7 +4016,7 @@ ${lost.map(fmt).join('\n')}
 WON (${won.length}):
 ${won.map(fmt).join('\n')}`;
     try {
-      const resData = await smartFetchAI('heavy', [{ parts: [{ text: prompt }] }], { temperature: 0.4 }, user, geminiModel, userApiKey);
+      const resData = await smartFetchAI('light', [{ parts: [{ text: prompt }] }], { temperature: 0.4, maxOutputTokens: 600 }, user, geminiModel, userApiKey);
       const text = resData?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
       if (text) setLostAnalysis(text);
       else showToast('No analysis returned — try again.', 'error');
@@ -4078,7 +4261,7 @@ Return ONLY a valid JSON object with: "summary", "tasks" (array of {title, desc}
       const resData = await smartFetchAI(
         'heavy',
         [{ parts: [{ text: prompt }] }],
-        { temperature: 0.3, response_mime_type: 'application/json' },
+        { temperature: 0.3, response_mime_type: 'application/json', maxOutputTokens: 3072 },
         user,
         geminiModel,
         userApiKey
@@ -4134,7 +4317,7 @@ Return ONLY a valid JSON object with keys: "title", "time" (e.g. "2h 30m"), "rat
       const resData = await smartFetchAI(
         'light',
         [{ parts: [{ text: prompt }] }],
-        { temperature: 0.3, response_mime_type: 'application/json' },
+        { temperature: 0.3, response_mime_type: 'application/json', maxOutputTokens: 600 },
         user,
         geminiModel,
         userApiKey
@@ -4161,7 +4344,7 @@ Return ONLY a valid JSON object with keys: "title", "time" (e.g. "2h 30m"), "rat
       const resData = await smartFetchAI(
         'light',
         [{ parts: [{ text: prompt }] }],
-        { temperature: 0.2 },
+        { temperature: 0.2, maxOutputTokens: 200 },
         user,
         geminiModel,
         userApiKey
@@ -4192,7 +4375,7 @@ Return ONLY a valid JSON object. Format: {"cost": 123.45, "items": "Hammer\\nNai
       const resData = await smartFetchAI(
         'light',
         [{ parts: [{ text: textPrompt }, { inlineData: { mimeType: 'image/webp', data: base64Data.split(',')[1] } }] }],
-        { temperature: 0, response_mime_type: 'application/json' },
+        { temperature: 0, response_mime_type: 'application/json', maxOutputTokens: 800 },
         user,
         geminiModel,
         userApiKey
@@ -4453,7 +4636,7 @@ Return ONLY a valid JSON object. Format: {"cost": 123.45, "items": "Hammer\\nNai
             : jimBusy ? <div className="h-9 w-9 flex-shrink-0" /> : <DraggableJim size={36} />}
           <div className="min-w-0">
             <h1 className="font-extrabold text-lg tracking-tight truncate leading-none">{viewMode === 'detail' ? 'Job Details' : (businessProfile?.name || 'JIM')}</h1>
-            {viewMode !== 'detail' && userTier && userTier !== 'free' ? (
+            {userTier && userTier !== 'free' ? (
               <p className="text-[9px] font-black uppercase tracking-wider mt-0.5 leading-none">
                 <span className={`px-1.5 py-0.5 rounded-full ${userTier === 'tester' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400' : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-400'}`}>{userTier}</span>
               </p>
@@ -5015,8 +5198,35 @@ Return ONLY a valid JSON object. Format: {"cost": 123.45, "items": "Hammer\\nNai
       {jimLiveOpen && <JimLivePanel status={jimLiveStatus} transcript={jimLiveTranscript} onClose={stopJimLive} onMicTap={handleMicTap} />}
 
       {/* Modals */}
-      {showSettings && <SettingsModal geminiModel={geminiModel} userApiKey={userApiKey} extraTaxRate={extraTaxRate} countryCode={countryCode} isDarkMode={isDarkMode} toggleTheme={() => setIsDarkMode(!isDarkMode)} exportData={exportData} importData={importData} userTemplates={userTemplates} saveUserTemplates={saveUserTemplates} userMaterials={userMaterials} saveUserMaterials={saveUserMaterials} businessProfile={businessProfile} saveBusinessProfile={saveBusinessProfile} onSave={(m, k, t, cc) => { setGeminiModel(m); setUserApiKey(k); setExtraTaxRate(Number(t)); const c = cc || 'AU'; localStorage.setItem('geminiModel', m); localStorage.setItem('userGeminiApiKey', k); localStorage.setItem('joblog-extratax', t); localStorage.setItem('jim-country', c); _cc = c; setCountryCode(c); }} onClose={() => setShowSettings(false)} showToast={showToast} dbSize={dbSize} isPro={isUnlocked} onUnlockPro={handleUnlockSuccess} onDeleteAccount={handleDeleteAccount} uid={user?.uid} />}
-      {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} onUnlock={handleUnlockSuccess} showToast={showToast} uid={user?.uid} />}
+      {showSettings && <SettingsModal geminiModel={geminiModel} userApiKey={userApiKey} extraTaxRate={extraTaxRate} countryCode={countryCode} isDarkMode={isDarkMode} toggleTheme={() => setIsDarkMode(!isDarkMode)} time24h={time24h} toggleTime24h={toggleTime24h} exportData={exportData} importData={importData} userTemplates={userTemplates} saveUserTemplates={saveUserTemplates} userMaterials={userMaterials} saveUserMaterials={saveUserMaterials} businessProfile={businessProfile} saveBusinessProfile={saveBusinessProfile} onSave={(m, k, t, cc) => { setGeminiModel(m); setUserApiKey(k); setExtraTaxRate(Number(t)); const c = cc || 'AU'; localStorage.setItem('geminiModel', m); localStorage.setItem('userGeminiApiKey', k); localStorage.setItem('joblog-extratax', t); localStorage.setItem('jim-country', c); _cc = c; setCountryCode(c); }} onClose={() => setShowSettings(false)} showToast={showToast} dbSize={dbSize} isPro={isUnlocked} onUnlockPro={handleUnlockSuccess} onDeleteAccount={handleDeleteAccount} user={user} />}
+      {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} onUnlock={handleUnlockSuccess} showToast={showToast} user={user} />}
+      {proWelcome && (
+        <div className="fixed inset-0 z-[400] bg-slate-900/90 backdrop-blur-md flex items-end sm:items-center justify-center sm:p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl w-full max-w-sm p-8 shadow-2xl border dark:border-slate-800 text-center pb-safe">
+            <div className="w-20 h-20 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full flex items-center justify-center mx-auto mb-5 shadow-lg shadow-orange-500/40">
+              <Sparkles size={40} className="text-white" />
+            </div>
+            <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-2">Welcome to Pro!</h2>
+            {proConfirming ? (
+              <>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">Activating your account…</p>
+                <div className="w-8 h-8 border-3 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                <p className="text-xs text-slate-400 dark:text-slate-500">This usually takes a few seconds.</p>
+              </>
+            ) : userTier && userTier !== 'free' ? (
+              <>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">Unlimited projects and AI are now unlocked. Thanks for supporting JIM 🙌</p>
+                <button onClick={() => setProWelcome(false)} className="w-full py-3 rounded-2xl bg-orange-500 hover:bg-orange-400 text-white font-black text-sm transition-colors">Let's go</button>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">Payment received — but activation is taking longer than expected. Try refreshing in a minute, or contact support if Pro doesn't appear.</p>
+                <button onClick={() => { setProWelcome(false); window.location.reload(); }} className="w-full py-3 rounded-2xl bg-orange-500 hover:bg-orange-400 text-white font-black text-sm transition-colors">Refresh</button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
       {newJobModal && <NewJobModal type={newJobModal} user={user} geminiModel={geminiModel} userApiKey={userApiKey} onSave={handleCreateJob} onClose={() => setNewJobModal(null)} showToast={showToast} toggleVoice={toggleVoice} listeningField={listeningField} jobs={jobs} businessProfile={businessProfile} />}
 
       {showAIAssistModal && activeJob && <AIAssistModal onClose={() => setShowAIAssistModal(false)} onGenerate={handleGenerateDocument} isGenerating={isGenerating} docType={isCompletionDoc(activeJob) ? 'Completion Invoice' : 'Quotation'} toggleVoice={toggleVoice} listeningField={listeningField} />}

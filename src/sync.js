@@ -1,9 +1,24 @@
-import { doc, getDoc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, deleteDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { get, set } from 'idb-keyval';
 import { db } from './firebase';
 
 const TS_KEY = '_jim_sync_ts';
 const ref = (uid, key) => doc(db, 'users', uid, 'data', key);
+
+// Write createdAt to users/{uid} from Firebase Auth's account creation time if it's missing.
+// Existing accounts predate Phase 4 and have no createdAt — without this, the Worker's 30-day AI
+// trial cutoff never engages for them. Safe to call on every login: a no-op once the field exists.
+export async function backfillCreatedAt(uid, creationTimeMs) {
+  if (!uid || !creationTimeMs) return;
+  try {
+    const userRef = doc(db, 'users', uid);
+    const snap = await getDoc(userRef);
+    if (snap.exists() && snap.data().createdAt) return;
+    await setDoc(userRef, { createdAt: Timestamp.fromMillis(creationTimeMs) }, { merge: true });
+  } catch {
+    // offline or rules — try again next login
+  }
+}
 
 // Called after every local save — fire-and-forget to Firestore
 export async function syncWrite(uid, key, data) {

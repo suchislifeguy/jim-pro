@@ -4,7 +4,10 @@
   "private": true,
   "scripts": {
     "deploy": "wrangler deploy",
-    "dev": "wrangler dev"
+    "dev": "wrangler dev --port 8787",
+    "dev:webhook": "stripe listen --forward-to localhost:8787/stripeWebhook",
+    "test:checkout": "stripe trigger checkout.session.completed",
+    "test:cancel": "stripe trigger customer.subscription.deleted"
   },
   "devDependencies": {
     "wrangler": "^3.0.0"

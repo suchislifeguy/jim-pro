@@ -33,4 +33,8 @@ firebase-debug.log
 
 # API keys — never commit
 functions/.env
+functions/.dev.vars
 functions/.secret.local
+
+# Wrangler local cache
+functions/.wrangler/
