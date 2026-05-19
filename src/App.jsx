@@ -2051,9 +2051,16 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
 
   // Preview view-mode: 'fit' shrinks the document to viewport width (looks like a real PDF on phone);
   // 'readable' lets it reflow to the screen. Mobile defaults to 'fit', desktop to 'readable'.
+  const PDF_NATURAL_W = 768; // matches max-w-3xl on desktop
+  const initialScale = (() => {
+    if (typeof window === 'undefined') return 1;
+    // Account for outermost container padding (p-4 → 16px each side on mobile).
+    const usable = Math.max(120, window.innerWidth - 32);
+    return Math.min(1, usable / PDF_NATURAL_W);
+  })();
   const [pdfViewMode, setPdfViewMode] = useState(() => (typeof window !== 'undefined' && window.innerWidth < 640) ? 'fit' : 'readable');
   const [pdfViewLoaded, setPdfViewLoaded] = useState(false);
-  const [pdfScale, setPdfScale] = useState(1);
+  const [pdfScale, setPdfScale] = useState(initialScale);
   const [pdfScaledHeight, setPdfScaledHeight] = useState(null);
   const scaleOuterRef = useRef(null);
   const pdfContentRef = useRef(null);
@@ -2074,10 +2081,9 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
     const outer = scaleOuterRef.current;
     const inner = pdfContentRef.current;
     if (!outer || !inner) return;
-    const NATURAL_W = 768; // matches max-w-3xl on desktop
     const recompute = () => {
-      const w = outer.clientWidth;
-      const s = Math.min(1, w / NATURAL_W);
+      const w = outer.clientWidth || (window.innerWidth - 32);
+      const s = Math.min(1, w / PDF_NATURAL_W);
       setPdfScale(s);
       setPdfScaledHeight(inner.scrollHeight * s);
     };
@@ -2248,8 +2254,10 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
     setIsGeneratingPDF(true);
     try {
       const doc = await buildPdfDoc();
-      doc.save(pdfFilename());
-      showToast('Saved PDF', 'success');
+      // Open the PDF in a new tab so the user can review it before deciding to save.
+      // jsPDF returns a blob: URL that browsers render with their built-in viewer.
+      const blobUrl = doc.output('bloburl');
+      window.open(blobUrl, '_blank');
     } catch (err) { showToast('Error generating PDF', 'error'); console.error(err); }
     finally { setIsGeneratingPDF(false); }
   };
@@ -2303,8 +2311,8 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
   };
 
   return createPortal(
-    <div id="print-container" className="print-preview-overlay fixed inset-0 z-[500] bg-slate-100 dark:bg-slate-900 p-4 sm:p-8 overflow-y-auto pb-safe">
-      <div className="max-w-3xl mx-auto">
+    <div id="print-container" className="print-preview-overlay fixed inset-0 z-[500] bg-slate-100 dark:bg-slate-900 p-4 sm:p-8 overflow-y-auto overflow-x-hidden pb-safe">
+      <div className="max-w-3xl mx-auto overflow-x-hidden">
         <div className="flex justify-between items-center mb-5 no-print gap-2">
           <div className="flex items-center gap-2 min-w-0">
             <button onClick={onClose} aria-label="Back" className="w-9 h-9 flex-shrink-0 flex items-center justify-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full text-slate-500 hover:text-slate-700 dark:hover:text-white transition-colors"><ChevronRight size={16} className="rotate-180" /></button>
