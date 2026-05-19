@@ -89,6 +89,13 @@ body { -webkit-tap-highlight-color: transparent; transition: background-color 0.
   html, body { background-color: white !important; color: black !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
   body > *:not(#print-container) { display: none !important; }
   #print-container { position: static !important; display: block !important; padding: 0 !important; margin: 0 !important; background: white !important; overflow: visible !important; }
+  /* Strip the Fit-mode zoom/width so the document prints at natural A4 size,
+     not the shrunk-to-phone preview size the user was looking at on screen. */
+  #pdf-content.pdf-fit, #pdf-content.pdf-readable, #pdf-content {
+    zoom: 1 !important;
+    width: auto !important;
+    max-width: 100% !important;
+  }
   .no-print { display: none !important; }
   .no-print-border { border: none !important; background: transparent !important; }
 

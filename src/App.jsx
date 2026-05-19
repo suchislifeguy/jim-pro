@@ -2247,17 +2247,17 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
 
   const pdfFilename = () => `${(header.clientName || job.clientName || 'Job').replace(/[^a-z0-9-]+/gi, '_')}-${docNumber || formatLocal(header.date, 'short')}.pdf`;
 
-  const handlePreviewSave = async () => {
-    setIsGeneratingPDF(true);
-    try {
-      const doc = await buildPdfDoc();
-      // Direct download. The in-app Fit/Readable preview above is the preview;
-      // this button just saves the file. Avoids the Android PWA case where opening
-      // a blob: PDF only offers a Drive upload (no save-to-device).
-      doc.save(pdfFilename());
-      showToast('Saved PDF', 'success');
-    } catch (err) { showToast('Error generating PDF', 'error'); console.error(err); }
-    finally { setIsGeneratingPDF(false); }
+  const handlePreviewSave = () => {
+    // Trigger the browser's native print dialog. The user gets a real print
+    // preview and can choose "Save as PDF" as the destination (with custom
+    // filename) or pick a physical printer. document.title becomes the default
+    // suggested filename in most browsers.
+    const prevTitle = document.title;
+    const desired = pdfFilename().replace(/\.pdf$/i, '');
+    document.title = desired;
+    const restore = () => { document.title = prevTitle; window.removeEventListener('afterprint', restore); };
+    window.addEventListener('afterprint', restore);
+    window.print();
   };
 
   const handleSharePDF = async () => {
