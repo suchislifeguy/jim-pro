@@ -122,6 +122,17 @@ body { -webkit-tap-highlight-color: transparent; transition: background-color 0.
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 .canvas-editor-area { touch-action: none; }
 * { max-width: 100%; box-sizing: border-box; }
+/* PDF preview escape hatches — the document needs its natural A4-ish width so internal
+   right-aligned columns (date/ref) don't overflow. Fit mode then uses CSS `zoom` to
+   shrink the whole layout box to fit the phone viewport. */
+#pdf-content.pdf-fit, #pdf-content.pdf-fit *,
+#pdf-content.pdf-readable [class*="min-w-"],
+#pdf-content.pdf-readable [class*="w-40"],
+#pdf-content.pdf-readable [class*="w-44"] { max-width: none !important; }
+@media (max-width: 640px) {
+  #pdf-content.pdf-readable [class*="min-w-"] { min-width: 0 !important; }
+  #pdf-content.pdf-readable .w-40 { width: auto !important; }
+}
 .container { overflow-x: hidden; }
 p, h1, h2, h3, h4, span, div { word-wrap: break-word; overflow-wrap: break-word; }
 .max-w-2xl { width: 100%; padding-left: 1rem; padding-right: 1rem; margin-left: auto; margin-right: auto; }

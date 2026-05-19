@@ -2049,19 +2049,20 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
   const [showImages, setShowImages] = useState(true);
   const [groupPhotosByTask, setGroupPhotosByTask] = useState(false);
 
-  // Preview view-mode: 'fit' shrinks the document to viewport width (looks like a real PDF on phone);
-  // 'readable' lets it reflow to the screen. Mobile defaults to 'fit', desktop to 'readable'.
+  // Preview view-mode: 'fit' shrinks the whole A4-width document to fit the viewport
+  // using CSS `zoom` (shrinks layout box, not just visuals — so internal min-widths
+  // like the date column don't get clipped). 'readable' lets the document reflow to
+  // the screen at native size (with a CSS override that nullifies the document's
+  // right-column min-widths on phones so nothing overflows horizontally).
   const PDF_NATURAL_W = 768; // matches max-w-3xl on desktop
   const initialScale = (() => {
     if (typeof window === 'undefined') return 1;
-    // Account for outermost container padding (p-4 → 16px each side on mobile).
     const usable = Math.max(120, window.innerWidth - 32);
     return Math.min(1, usable / PDF_NATURAL_W);
   })();
   const [pdfViewMode, setPdfViewMode] = useState(() => (typeof window !== 'undefined' && window.innerWidth < 640) ? 'fit' : 'readable');
   const [pdfViewLoaded, setPdfViewLoaded] = useState(false);
   const [pdfScale, setPdfScale] = useState(initialScale);
-  const [pdfScaledHeight, setPdfScaledHeight] = useState(null);
   const scaleOuterRef = useRef(null);
   const pdfContentRef = useRef(null);
 
@@ -2077,22 +2078,18 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
   useEffect(() => { if (pdfViewLoaded) set('joblog-pdf-view-mode', pdfViewMode).catch(() => {}); }, [pdfViewMode, pdfViewLoaded]);
 
   useEffect(() => {
-    if (pdfViewMode !== 'fit') { setPdfScale(1); setPdfScaledHeight(null); return; }
+    if (pdfViewMode !== 'fit') { setPdfScale(1); return; }
     const outer = scaleOuterRef.current;
-    const inner = pdfContentRef.current;
-    if (!outer || !inner) return;
+    if (!outer) return;
     const recompute = () => {
       const w = outer.clientWidth || (window.innerWidth - 32);
-      const s = Math.min(1, w / PDF_NATURAL_W);
-      setPdfScale(s);
-      setPdfScaledHeight(inner.scrollHeight * s);
+      setPdfScale(Math.min(1, w / PDF_NATURAL_W));
     };
     recompute();
     const ro = new ResizeObserver(recompute);
     ro.observe(outer);
-    ro.observe(inner);
     return () => ro.disconnect();
-  }, [pdfViewMode, tasks, showImages, showBusinessHeader, signatureEnabled, docStage, docStyle, groupPhotosByTask, header]);
+  }, [pdfViewMode]);
 
   useEffect(() => { onUpdateJob({ ...job, tasks, date: new Date(header.date).toISOString(), showSignature: signatureEnabled, signature: signatureData, quoteNumber: header.quoteNumber, invoiceNumber: header.invoiceNumber, receiptNumber: header.receiptNumber, paidDate: header.paidDate, paymentMethod: header.paymentMethod }); }, [header.date, header.dueDate, header.quoteNumber, header.invoiceNumber, header.receiptNumber, header.paidDate, header.paymentMethod, signatureEnabled, signatureData, tasks]);
 
@@ -2389,15 +2386,13 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
           </div>
         </div>
 
+        <div ref={scaleOuterRef} className="overflow-x-hidden">
         <div
-          ref={scaleOuterRef}
-          className="overflow-x-hidden"
-          style={pdfViewMode === 'fit' && pdfScaledHeight ? { height: `${pdfScaledHeight}px` } : null}
+          id="pdf-content"
+          ref={pdfContentRef}
+          className={`${s.container} ${s.fontFamily} ${pdfViewMode === 'fit' ? 'pdf-fit' : 'pdf-readable'}`}
+          style={pdfViewMode === 'fit' ? { width: `${PDF_NATURAL_W}px`, maxWidth: 'none', zoom: pdfScale } : null}
         >
-        <div
-          style={pdfViewMode === 'fit' ? { width: '768px', transformOrigin: 'top left', transform: `scale(${pdfScale})` } : null}
-        >
-        <div id="pdf-content" ref={pdfContentRef} className={`${s.container} ${s.fontFamily}`}>
           {showBusinessHeader && biz.name && (
             <div className={s.headerLine}>
               <div className="flex justify-between items-start gap-4">
@@ -2598,7 +2593,6 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
               {biz.termsAndConditions}
             </div>
           )}
-        </div>
         </div>
         </div>
       </div>
