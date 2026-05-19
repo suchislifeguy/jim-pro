@@ -2248,8 +2248,8 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
     setIsGeneratingPDF(true);
     try {
       const doc = await buildPdfDoc();
-      const blobUrl = doc.output('bloburl');
-      window.open(blobUrl, '_blank');
+      doc.save(pdfFilename());
+      showToast('Saved PDF', 'success');
     } catch (err) { showToast('Error generating PDF', 'error'); console.error(err); }
     finally { setIsGeneratingPDF(false); }
   };
@@ -2305,57 +2305,57 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
   return createPortal(
     <div id="print-container" className="print-preview-overlay fixed inset-0 z-[500] bg-slate-100 dark:bg-slate-900 p-4 sm:p-8 overflow-y-auto pb-safe">
       <div className="max-w-3xl mx-auto">
-        <div className="flex flex-wrap justify-between items-center mb-5 no-print gap-2">
-          <div className="flex items-center gap-2">
-            <button onClick={onClose} aria-label="Back" className="w-9 h-9 flex items-center justify-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full text-slate-500 hover:text-slate-700 dark:hover:text-white transition-colors"><ChevronRight size={16} className="rotate-180" /></button>
-            <h2 className="text-lg font-extrabold text-slate-800 dark:text-white">Preview</h2>
+        <div className="flex justify-between items-center mb-5 no-print gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <button onClick={onClose} aria-label="Back" className="w-9 h-9 flex-shrink-0 flex items-center justify-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full text-slate-500 hover:text-slate-700 dark:hover:text-white transition-colors"><ChevronRight size={16} className="rotate-180" /></button>
+            <h2 className="text-lg font-extrabold text-slate-800 dark:text-white truncate">Preview</h2>
           </div>
-          <div className="flex flex-wrap items-center gap-1.5">
-            <button onClick={handlePreviewSave} disabled={isGeneratingPDF} className="h-9 px-3 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg font-semibold flex items-center gap-1.5 text-xs transition-colors hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-60"><FileDown size={13} /> Save as PDF</button>
-            <button onClick={handleEmail} className="h-9 px-3 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg font-semibold flex items-center gap-1.5 text-xs transition-colors hover:bg-slate-50 dark:hover:bg-slate-700"><Mail size={13} /> Email</button>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <button onClick={handlePreviewSave} disabled={isGeneratingPDF} aria-label="Save as PDF" title="Save as PDF" className="h-9 w-9 sm:w-auto sm:px-3 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg font-semibold flex items-center justify-center sm:gap-1.5 text-xs transition-colors hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-60"><FileDown size={14} /><span className="hidden sm:inline">Save as PDF</span></button>
+            <button onClick={handleEmail} aria-label="Email" title="Email" className="h-9 w-9 sm:w-auto sm:px-3 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg font-semibold flex items-center justify-center sm:gap-1.5 text-xs transition-colors hover:bg-slate-50 dark:hover:bg-slate-700"><Mail size={14} /><span className="hidden sm:inline">Email</span></button>
             {job.clientPhone && (
-              <button onClick={handleSMS} className="h-9 px-3 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg font-semibold flex items-center gap-1.5 text-xs transition-colors hover:bg-slate-50 dark:hover:bg-slate-700"><MessageSquare size={13} /> SMS</button>
+              <button onClick={handleSMS} aria-label="SMS" title="SMS" className="h-9 w-9 sm:w-auto sm:px-3 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg font-semibold flex items-center justify-center sm:gap-1.5 text-xs transition-colors hover:bg-slate-50 dark:hover:bg-slate-700"><MessageSquare size={14} /><span className="hidden sm:inline">SMS</span></button>
             )}
-            <button onClick={handleSharePDF} disabled={isGeneratingPDF} className="h-9 px-3.5 bg-orange-500 hover:bg-orange-400 text-white rounded-lg font-bold flex items-center gap-1.5 text-xs transition-colors shadow-sm disabled:opacity-60">
-              {isGeneratingPDF ? <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Send size={13} />} Share PDF
+            <button onClick={handleSharePDF} disabled={isGeneratingPDF} aria-label="Share PDF" title="Share PDF" className="h-9 w-9 sm:w-auto sm:px-3.5 bg-orange-500 hover:bg-orange-400 text-white rounded-lg font-bold flex items-center justify-center sm:gap-1.5 text-xs transition-colors shadow-sm disabled:opacity-60">
+              {isGeneratingPDF ? <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Send size={14} />}<span className="hidden sm:inline">Share PDF</span>
             </button>
           </div>
         </div>
 
         {/* Document Controls Toolbar */}
-        <div className="flex flex-col gap-4 mb-6 p-5 bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl rounded-2xl border border-slate-200 dark:border-slate-700 no-print shadow-xl shadow-slate-200/50 dark:shadow-none">
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-3 sm:gap-4 mb-6 p-3 sm:p-5 bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl rounded-2xl border border-slate-200 dark:border-slate-700 no-print shadow-xl shadow-slate-200/50 dark:shadow-none">
+          <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 sm:gap-4">
+            <div className="flex flex-col gap-1.5 sm:gap-2">
               <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Document Stage</label>
               <div className="flex p-1 bg-slate-100 dark:bg-slate-900 rounded-xl">
-                <button onClick={() => setDocStage('quote')} className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${docStage === 'quote' ? 'bg-white dark:bg-slate-800 text-orange-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Quote</button>
-                <button onClick={() => setDocStage('invoice')} className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${docStage === 'invoice' ? 'bg-white dark:bg-slate-800 text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Invoice</button>
-                <button onClick={() => setDocStage('receipt')} className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${docStage === 'receipt' ? 'bg-white dark:bg-slate-800 text-sky-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Receipt</button>
+                <button onClick={() => setDocStage('quote')} className={`flex-1 sm:flex-initial px-3 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${docStage === 'quote' ? 'bg-white dark:bg-slate-800 text-orange-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Quote</button>
+                <button onClick={() => setDocStage('invoice')} className={`flex-1 sm:flex-initial px-3 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${docStage === 'invoice' ? 'bg-white dark:bg-slate-800 text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Invoice</button>
+                <button onClick={() => setDocStage('receipt')} className={`flex-1 sm:flex-initial px-3 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${docStage === 'receipt' ? 'bg-white dark:bg-slate-800 text-sky-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Receipt</button>
               </div>
             </div>
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1.5 sm:gap-2">
               <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Options</label>
-              <div className="flex gap-2">
-                <button onClick={() => setShowBusinessHeader(v => !v)} className={`h-8 px-3 rounded-lg text-[11px] font-black border-2 transition-all flex items-center gap-1.5 ${showBusinessHeader ? 'bg-slate-900 dark:bg-white border-slate-900 dark:border-white text-white dark:text-slate-900' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-600 text-slate-400'}`}>
+              <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                <button onClick={() => setShowBusinessHeader(v => !v)} className={`h-8 px-2.5 sm:px-3 rounded-lg text-[11px] font-black border-2 transition-all flex items-center gap-1.5 ${showBusinessHeader ? 'bg-slate-900 dark:bg-white border-slate-900 dark:border-white text-white dark:text-slate-900' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-600 text-slate-400'}`}>
                   <Building2 size={11} /> Header
                 </button>
-                <button onClick={() => setShowImages(v => !v)} className={`h-8 px-3 rounded-lg text-[11px] font-black border-2 transition-all flex items-center gap-1.5 ${showImages ? 'bg-slate-900 dark:bg-white border-slate-900 dark:border-white text-white dark:text-slate-900' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-600 text-slate-400'}`}>
+                <button onClick={() => setShowImages(v => !v)} className={`h-8 px-2.5 sm:px-3 rounded-lg text-[11px] font-black border-2 transition-all flex items-center gap-1.5 ${showImages ? 'bg-slate-900 dark:bg-white border-slate-900 dark:border-white text-white dark:text-slate-900' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-600 text-slate-400'}`}>
                   <ImageIcon size={11} /> Photos
                 </button>
                 {showImages && (
-                  <button onClick={() => setGroupPhotosByTask(v => !v)} className={`h-8 px-3 rounded-lg text-[11px] font-black border-2 transition-all flex items-center gap-1.5 ${groupPhotosByTask ? 'bg-orange-500 border-orange-500 text-white' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-600 text-slate-400'}`} title="Group photos by task">
-                    Group by task
+                  <button onClick={() => setGroupPhotosByTask(v => !v)} className={`h-8 px-2.5 sm:px-3 rounded-lg text-[11px] font-black border-2 transition-all flex items-center gap-1.5 ${groupPhotosByTask ? 'bg-orange-500 border-orange-500 text-white' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-600 text-slate-400'}`} title="Group photos by task">
+                    Group
                   </button>
                 )}
-                <button onClick={() => setSignatureEnabled(!signatureEnabled)} className={`h-8 px-3 rounded-lg text-[11px] font-black border-2 transition-all flex items-center gap-1.5 ${signatureEnabled ? 'bg-slate-900 dark:bg-white border-slate-900 dark:border-white text-white dark:text-slate-900' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-600 text-slate-400'}`}>
+                <button onClick={() => setSignatureEnabled(!signatureEnabled)} className={`h-8 px-2.5 sm:px-3 rounded-lg text-[11px] font-black border-2 transition-all flex items-center gap-1.5 ${signatureEnabled ? 'bg-slate-900 dark:bg-white border-slate-900 dark:border-white text-white dark:text-slate-900' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-600 text-slate-400'}`}>
                   <Edit3 size={11} /> Sign
                 </button>
               </div>
             </div>
           </div>
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-1.5 sm:gap-2">
             <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Style Theme</label>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
               {[
                 { val: 'contractor', label: 'Contractor', preview: 'bg-orange-500' },
                 { val: 'boutique', label: 'Boutique', preview: 'bg-[#8B7355]' },
@@ -2364,7 +2364,7 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
               ].map(({ val, label, preview }) => {
                 const isActive = docStyle === val;
                 return (
-                  <button key={val} onClick={() => setDocStyle(val)} className={`py-2 px-2 rounded-xl text-[11px] font-black transition-all border-2 flex flex-col items-center gap-1.5 ${isActive ? 'border-orange-500 bg-orange-50 dark:bg-orange-950/30 text-orange-600 shadow-md shadow-orange-500/10' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 hover:border-slate-300'}`}>
+                  <button key={val} onClick={() => setDocStyle(val)} className={`py-1.5 sm:py-2 px-2 rounded-xl text-[10px] sm:text-[11px] font-black transition-all border-2 flex flex-col items-center gap-1 sm:gap-1.5 ${isActive ? 'border-orange-500 bg-orange-50 dark:bg-orange-950/30 text-orange-600 shadow-md shadow-orange-500/10' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 hover:border-slate-300'}`}>
                     <span className={`w-full h-2 rounded-sm border ${preview}`} />
                     {label}
                   </button>
@@ -2372,7 +2372,7 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
               })}
             </div>
           </div>
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-1.5 sm:gap-2">
             <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">View Mode</label>
             <div className="flex p-1 bg-slate-100 dark:bg-slate-900 rounded-xl">
               <button onClick={() => setPdfViewMode('fit')} className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${pdfViewMode === 'fit' ? 'bg-white dark:bg-slate-800 text-orange-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Fit width</button>
@@ -2823,7 +2823,7 @@ const TimesheetPrintPreview = ({ weekLabel, weeklyLogs, weeklyTotalMins, jobs, b
   );
 };
 
-const ScheduleView = ({ appointments, timesheets, jobs, onSaveAppointment, onDeleteAppointment, showConfirm, onScheduleFromJob, showToast, onNewTimeEntry, onEditTimeEntry, businessProfile }) => {
+const ScheduleView = ({ appointments, timesheets, jobs, onSaveAppointment, onDeleteAppointment, showConfirm, onScheduleFromJob, showToast, onNewTimeEntry, onEditTimeEntry, businessProfile, time24h }) => {
   const [viewTab, setViewTab] = useState('upcoming');
   const [weekOffset, setWeekOffset] = useState(0);
   const [apptModal, setApptModal] = useState(null);
@@ -2836,7 +2836,16 @@ const ScheduleView = ({ appointments, timesheets, jobs, onSaveAppointment, onDel
 
   const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(startOfWeek); d.setDate(d.getDate() + i); return d; });
-  const hours = Array.from({ length: 15 }, (_, i) => i + 6);
+  // 24h mode → full 0..23 (covers night-shift call-outs). 12h mode → day-worker window 6..20.
+  const hours = time24h
+    ? Array.from({ length: 24 }, (_, i) => i)
+    : Array.from({ length: 15 }, (_, i) => i + 6);
+  const formatHourLabel = (h) => {
+    if (time24h) return `${String(h).padStart(2, '0')}:00`;
+    if (h === 0) return '12 AM';
+    if (h === 12) return '12 PM';
+    return h < 12 ? `${h} AM` : `${h - 12} PM`;
+  };
 
   // Setup Calendar Events (local only)
   const allEvents = appointments.map(a => ({ ...a, isLocal: true, start: new Date(a.start), end: new Date(a.end) }));
@@ -2939,7 +2948,7 @@ const ScheduleView = ({ appointments, timesheets, jobs, onSaveAppointment, onDel
             })}
             {hours.map(hour => (
               <React.Fragment key={hour}>
-                <div className="calendar-hour">{hour}:00</div>
+                <div className="calendar-hour">{formatHourLabel(hour)}</div>
                 {days.map((day, di) => {
                   const slotEvents = getEventsForSlot(day, hour);
                   return (
@@ -4671,7 +4680,7 @@ Return ONLY a valid JSON object. Format: {"cost": 123.45, "items": "Hammer\\nNai
       )}
 
       {/* Schedule View */}
-      {viewMode === 'schedule' && <ScheduleView jobs={jobs} appointments={appointments} timesheets={timesheets} onSaveAppointment={handleSaveAppointment} onDeleteAppointment={handleDeleteAppointment} showConfirm={showConfirm} onScheduleFromJob={openAppointmentForJob} showToast={showToast} onNewTimeEntry={() => setTimeEntryModal({ id: null, date: formatLocal(new Date(), 'iso-date'), startTime: '08:00', endTime: '16:00', jobId: '', category: 'Site Work', notes: '' })} onEditTimeEntry={(entry) => setTimeEntryModal(entry)} businessProfile={businessProfile} />}
+      {viewMode === 'schedule' && <ScheduleView jobs={jobs} appointments={appointments} timesheets={timesheets} onSaveAppointment={handleSaveAppointment} onDeleteAppointment={handleDeleteAppointment} showConfirm={showConfirm} onScheduleFromJob={openAppointmentForJob} showToast={showToast} onNewTimeEntry={() => setTimeEntryModal({ id: null, date: formatLocal(new Date(), 'iso-date'), startTime: '08:00', endTime: '16:00', jobId: '', category: 'Site Work', notes: '' })} onEditTimeEntry={(entry) => setTimeEntryModal(entry)} businessProfile={businessProfile} time24h={time24h} />}
 
       {/* Dashboard */}
       {viewMode === 'dashboard' && (
