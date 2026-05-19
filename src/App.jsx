@@ -2251,10 +2251,11 @@ const PrintPreview = ({ job, extraTaxRate, businessProfile = {}, onClose, onUpda
     setIsGeneratingPDF(true);
     try {
       const doc = await buildPdfDoc();
-      // Open the PDF in a new tab so the user can review it before deciding to save.
-      // jsPDF returns a blob: URL that browsers render with their built-in viewer.
-      const blobUrl = doc.output('bloburl');
-      window.open(blobUrl, '_blank');
+      // Direct download. The in-app Fit/Readable preview above is the preview;
+      // this button just saves the file. Avoids the Android PWA case where opening
+      // a blob: PDF only offers a Drive upload (no save-to-device).
+      doc.save(pdfFilename());
+      showToast('Saved PDF', 'success');
     } catch (err) { showToast('Error generating PDF', 'error'); console.error(err); }
     finally { setIsGeneratingPDF(false); }
   };
